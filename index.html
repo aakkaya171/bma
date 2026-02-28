@@ -1,4 +1,4 @@
-<!-- /mnt/data/index.html (ersetze deine <style> + die UI-Struktur im <body> durch das hier) -->
+<!-- /mnt/data/index.html -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -12,16 +12,11 @@
       --bg-mid:#062744;
       --bg-bottom:#083455;
 
-      --pill:#123a5d;
-      --pill2:#103551;
-
       --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.62);
 
       --stroke: rgba(255,255,255,.14);
       --shadow: 0 10px 24px rgba(0,0,0,.28);
-
-      --r: 26px;
     }
 
     *{ box-sizing: border-box; }
@@ -29,8 +24,9 @@
     body{
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
-      background: radial-gradient(900px 420px at 35% 18%, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 55%),
-                  linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
+      background:
+        radial-gradient(900px 420px at 35% 18%, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 55%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
       padding:
         env(safe-area-inset-top)
         calc(18px + env(safe-area-inset-right))
@@ -44,14 +40,12 @@
       padding-top: 6px;
     }
 
-    .panel{
-      padding: 18px 10px 12px;
-    }
+    .panel{ padding: 18px 10px 12px; }
 
-    /* --- TOP ROW: Station/Level exactly like screenshot --- */
+    /* Station/Level row like screenshot */
     .controls{
       display: grid;
-      grid-template-columns: auto 1fr auto 132px;
+      grid-template-columns: auto 1fr auto 140px;
       gap: 12px 14px;
       align-items: center;
     }
@@ -76,8 +70,6 @@
       box-shadow: var(--shadow);
       outline: none;
     }
-
-    /* up/down chevrons like iOS */
     .select-wrap::after{
       content: "⇅";
       position:absolute;
@@ -89,7 +81,14 @@
       pointer-events:none;
     }
 
-    /* --- Chips & buttons --- */
+    .row{
+      display:flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      padding: 0 10px;
+    }
+
     .chip{
       display:inline-flex;
       align-items:center;
@@ -102,13 +101,6 @@
       font-weight: 650;
     }
 
-    .row{
-      display:flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-top: 16px;
-    }
-
     .btn{
       border: 0;
       border-radius: 999px;
@@ -118,7 +110,7 @@
       background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
       box-shadow: var(--shadow);
       cursor: pointer;
-      text-align: left;            /* screenshot: text starts left */
+      text-align: left;
       display:inline-flex;
       align-items:center;
       justify-content:flex-start;
@@ -126,15 +118,9 @@
       user-select:none;
     }
     .btn:active{ transform: scale(.99); }
+    .btn.half{ flex: 1 1 240px; }
+    .btn.full{ width: 100%; }
 
-    .btn.half{
-      flex: 1 1 240px;
-    }
-    .btn.full{
-      width: 100%;
-    }
-
-    /* --- Preview --- */
     .viewer{
       margin-top: 18px;
       padding: 0 10px 18px;
@@ -198,9 +184,7 @@
     .tri.right{ border-left:18px solid rgba(255,255,255,0.85); margin-left:4px; }
 
     @media (max-width: 520px){
-      .controls{
-        grid-template-columns: auto 1fr;
-      }
+      .controls{ grid-template-columns: auto 1fr; }
       .klabel:nth-child(3){ grid-column: 1; }
       #levelWrap{ grid-column: 2; }
     }
@@ -223,7 +207,7 @@
       </div>
 
       <div class="row">
-        <div id="pageIndicator" class="chip">Seite: 1/1</div>
+        <div id="pageIndicator" class="chip">Seite: 0/0</div>
       </div>
 
       <div class="row">
