@@ -14,6 +14,7 @@
       --txt:#ffffff;
       --muted:rgba(255,255,255,.55);
       --radius:16px;
+      --gap:10px;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--txt);}
@@ -25,11 +26,6 @@
       backdrop-filter: blur(6px);
       border-bottom:1px solid rgba(255,255,255,.08);
     }
-    .row{
-      display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-      margin-bottom:10px;
-    }
-    .row:last-child{margin-bottom:0}
 
     label{color:var(--muted); font-size:14px}
     select,button{
@@ -40,22 +36,61 @@
       padding:10px 14px;
       font-size:14px;
       box-shadow: 0 6px 18px rgba(0,0,0,.22) inset, 0 6px 18px rgba(0,0,0,.15);
+      white-space:nowrap;
     }
     button:hover{background:var(--btnHover); cursor:pointer}
+
     .pill{
       padding:10px 14px;
       border-radius:var(--radius);
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.10);
       color:var(--txt);
-      font-weight:600;
+      font-weight:700;
     }
 
-    .viewerWrap{
-      padding:12px;
+    /* ===== Desktop: bleibt flexibel wie vorher ===== */
+    .deskRow{
+      display:flex; flex-wrap:wrap; gap:var(--gap); align-items:center;
+      margin-bottom:10px;
+    }
+    .deskRow:last-child{margin-bottom:0}
+
+    /* ===== Mobile Grid (wie auf deinem Bild) ===== */
+    .mobileGrid{ display:none; }
+
+    @media (max-width: 650px){
+      .deskRow{ display:none; }
+      .mobileGrid{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:var(--gap);
+      }
+
+      /* obere Reihe: Station + Level */
+      .g-station{ grid-column:1; }
+      .g-level{ grid-column:2; }
+
+      /* 2. Reihe: Seite links + 2 freie Felder rechts (deine weißen Felder) */
+      .g-page{ grid-column:1; }
+      .g-slot1{ grid-column:2; }
+
+      /* 3. Reihe: Admin links + Alles löschen rechts */
+      .g-admin{ grid-column:1; }
+      .g-delete{ grid-column:2; }
+
+      /* 4. Reihe: PNG breit über beide Spalten */
+      .g-png{ grid-column:1 / span 2; }
+
+      /* 5. Reihe: ZIP breit über beide Spalten */
+      .g-zip{ grid-column:1 / span 2; }
+
+      /* bisschen größere Touch-Flächen */
+      select,button,.pill{ padding:12px 14px; font-size:15px; }
     }
 
-    /* Scroller erlaubt Zoom/Scroll mit Finger/Maus */
+    .viewerWrap{ padding:12px; }
+
     #scroller{
       height: calc(100vh - 160px);
       overflow:auto;
@@ -63,6 +98,9 @@
       background:rgba(255,255,255,.04);
       border:1px solid rgba(255,255,255,.08);
       -webkit-overflow-scrolling:touch;
+    }
+    @media (max-width:650px){
+      #scroller{ height: calc(100vh - 260px); }
     }
 
     #plan{
@@ -73,24 +111,28 @@
     }
     #planImg{
       display:block;
-      width:1200px; /* kann groß sein, scroller macht den Rest */
+      width:1200px;
       max-width:none;
     }
+    @media (max-width:600px){
+      #planImg{ width:980px; }
+    }
 
-    /* Häkchen-Overlay */
     .mark{
       position:absolute;
       transform:translate(-50%,-50%);
       pointer-events:none;
       font-size:64px;
       font-weight:900;
-      color:#111;                 /* wie am Plan: dunkel */
-      -webkit-text-stroke: 5px #fff; /* weißer Rand damit sichtbar */
+      color:#111;
+      -webkit-text-stroke: 5px #fff;
       line-height:1;
       text-shadow: 0 2px 10px rgba(0,0,0,.25);
     }
+    @media (max-width:600px){
+      .mark{ font-size:54px; -webkit-text-stroke:4px #fff; }
+    }
 
-    /* Navigation links/rechts unten */
     .nav{
       position:fixed; left:0; right:0; bottom:18px;
       display:flex; justify-content:space-between;
@@ -106,25 +148,16 @@
       background:rgba(0,0,0,.55);
       border:1px solid rgba(255,255,255,.18);
     }
-    .nav button.disabled{
-      opacity:.25;
-      cursor:default;
-    }
-    .nav button.disabled:hover{
-      background:rgba(0,0,0,.55);
-    }
-
-    @media (max-width:600px){
-      #scroller{ height: calc(100vh - 210px); }
-      #planImg{ width:980px; }
-      .mark{ font-size:54px; -webkit-text-stroke:4px #fff; }
-    }
+    .nav button.disabled{ opacity:.25; cursor:default; }
+    .nav button.disabled:hover{ background:rgba(0,0,0,.55); }
   </style>
 </head>
 
 <body>
   <header>
-    <div class="row">
+
+    <!-- ===== Desktop Layout ===== -->
+    <div class="deskRow">
       <label>Station:</label>
       <select id="stationSelect"></select>
 
@@ -134,12 +167,41 @@
       <span class="pill" id="pageInfo">Seite: 1/1</span>
     </div>
 
-    <div class="row">
+    <div class="deskRow">
       <button id="adminBtn">Admin: AUS</button>
       <button id="deleteAllBtn">ALLES löschen</button>
       <button id="exportPngBtn">PNG Export (dieses Bild)</button>
       <button id="exportZipBtn">ZIP Export (ganze Station)</button>
     </div>
+
+    <!-- ===== Mobile Layout (wie deine Skizze) ===== -->
+    <div class="mobileGrid">
+      <div class="g-station">
+        <label>Station:</label><br/>
+        <select id="stationSelect_m"></select>
+      </div>
+
+      <div class="g-level">
+        <label>Level:</label><br/>
+        <select id="levelSelect_m"></select>
+      </div>
+
+      <div class="g-page">
+        <span class="pill" id="pageInfo_m">Seite: 1/1</span>
+      </div>
+
+      <!-- 2 freie Felder rechts (du kannst später dort was reinlegen) -->
+      <div class="g-slot1">
+        <span class="pill" id="mobileSlot1" style="opacity:.35;">&nbsp;</span>
+      </div>
+
+      <button class="g-admin" id="adminBtn_m">Admin: AUS</button>
+      <button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
+
+      <button class="g-png" id="exportPngBtn_m">PNG Export (dieses Bild)</button>
+      <button class="g-zip" id="exportZipBtn_m">ZIP Export (ganze Station)</button>
+    </div>
+
   </header>
 
   <div class="viewerWrap">
@@ -155,10 +217,82 @@
     <button id="nextBtn" aria-label="nächste Seite">▶</button>
   </div>
 
-  <!-- JSZip für ZIP Export -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <script src="data.js"></script>
+
+  <!-- Kleines Sync-Script: mobile Controls spiegeln desktop IDs,
+       damit app.js nicht geändert werden muss -->
+  <script>
+    // Du hast jetzt doppelte Controls (desktop + mobile).
+    // Wir spiegeln die mobilen auf die originalen Elemente,
+    // indem wir mobile Events auf die desktop IDs weiterleiten.
+    window.addEventListener("DOMContentLoaded", () => {
+      const station = document.getElementById("stationSelect");
+      const level = document.getElementById("levelSelect");
+      const page = document.getElementById("pageInfo");
+
+      const stationM = document.getElementById("stationSelect_m");
+      const levelM = document.getElementById("levelSelect_m");
+      const pageM = document.getElementById("pageInfo_m");
+
+      const admin = document.getElementById("adminBtn");
+      const del = document.getElementById("deleteAllBtn");
+      const png = document.getElementById("exportPngBtn");
+      const zip = document.getElementById("exportZipBtn");
+
+      const adminM = document.getElementById("adminBtn_m");
+      const delM = document.getElementById("deleteAllBtn_m");
+      const pngM = document.getElementById("exportPngBtn_m");
+      const zipM = document.getElementById("exportZipBtn_m");
+
+      // Optionen von desktop nach mobile kopieren (nachdem app.js sie befüllt)
+      const syncSelectOptions = () => {
+        stationM.innerHTML = station.innerHTML;
+        levelM.innerHTML = level.innerHTML;
+        stationM.value = station.value;
+        levelM.value = level.value;
+      };
+
+      // pageInfo spiegeln
+      const syncPage = () => { pageM.textContent = page.textContent; };
+
+      // Events: mobile -> desktop
+      stationM.addEventListener("change", () => {
+        station.value = stationM.value;
+        station.dispatchEvent(new Event("change"));
+      });
+      levelM.addEventListener("change", () => {
+        level.value = levelM.value;
+        level.dispatchEvent(new Event("change"));
+      });
+
+      adminM.addEventListener("click", () => admin.click());
+      delM.addEventListener("click", () => del.click());
+      pngM.addEventListener("click", () => png.click());
+      zipM.addEventListener("click", () => zip.click());
+
+      // Desktop-Änderungen zurück auf mobile spiegeln (Polling kurz, simpel & stabil)
+      let lastStation = "", lastLevel = "", lastPage = "";
+      setInterval(() => {
+        // sobald app.js befüllt hat:
+        if (station.innerHTML && stationM.innerHTML !== station.innerHTML) syncSelectOptions();
+
+        if (station.value !== lastStation || level.value !== lastLevel) {
+          syncSelectOptions();
+          lastStation = station.value; lastLevel = level.value;
+        }
+
+        if (page.textContent !== lastPage) {
+          syncPage();
+          lastPage = page.textContent;
+        }
+
+        if (admin.textContent !== adminM.textContent) adminM.textContent = admin.textContent;
+      }, 200);
+    });
+  </script>
+
   <script src="app.js"></script>
 </body>
 </html>
