@@ -1,548 +1,265 @@
--<!doctype html>
--<html lang="de">
--<head>
--  <meta charset="utf-8" />
--  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
--  <title>BMA Wartung</title>
--
--  <style>
--    :root{
--      --bg1:#081a2a;
--      --bg2:#0c2a42;
--      --glass: rgba(255,255,255,0.06);
--      --glass2: rgba(255,255,255,0.08);
--      --stroke: rgba(255,255,255,0.14);
--      --text: rgba(255,255,255,0.92);
--      --muted: rgba(255,255,255,0.70);
--      --danger: rgba(160,40,50,0.35);
--      --shadow: 0 16px 40px rgba(0,0,0,0.35);
--    }
--
--    *{ box-sizing:border-box; }
--    html,body{ height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--text); }
--    body{
--      background: radial-gradient(1200px 700px at 30% 10%, #143a57 0%, var(--bg1) 45%, #061421 100%);
--      padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom) 14px;
--    }
--
--    .app{
--      max-width: 920px;
--      margin: 0 auto;
--    }
--
--    .panel{
--      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
--      border: 1px solid var(--stroke);
--      border-radius: 26px;
--      box-shadow: var(--shadow);
--      padding: 16px;
--      backdrop-filter: blur(10px);
--      -webkit-backdrop-filter: blur(10px);
--    }
--
--    /* --- Controls layout (wie dein ursprüngliches Design, nur sauber ausgerichtet) --- */
--    .controls{
--      display:grid;
--      grid-template-columns: 1fr 1fr auto;
--      gap: 12px;
--      align-items:end;
--    }
--
--    .field label{
--      display:block;
--      font-size: 15px;
--      color: var(--muted);
--      margin: 0 0 6px 6px;
--    }
--
--    .select{
--      width:100%;
--      appearance:none;
--      border:1px solid var(--stroke);
--      background: var(--glass);
--      color: var(--text);
--      border-radius: 18px;
--      padding: 14px 44px 14px 16px;
--      font-size: 18px;
--      outline:none;
--      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
--    }
--    .select-wrap{ position:relative; }
--    .select-wrap:after{
--      content:"";
--      position:absolute;
--      right:16px; top:50%;
--      width:0; height:0;
--      border-left:7px solid transparent;
--      border-right:7px solid transparent;
--      border-top:9px solid rgba(255,255,255,0.85);
--      transform: translateY(-20%);
--      pointer-events:none;
--      opacity:0.85;
--    }
--
--    .page-pill{
--      border: 1px solid var(--stroke);
--      background: var(--glass2);
--      border-radius: 18px;
--      padding: 14px 18px;
--      font-size: 20px;
--      min-width: 84px;
--      text-align:center;
--      align-self:end;
--    }
--
--    .row2{
--      margin-top: 12px;
--      display:grid;
--      grid-template-columns: 1fr 1fr;
--      gap: 12px;
--    }
--
--    .btn{
--      width:100%;
--      border:1px solid var(--stroke);
--      background: var(--glass);
--      color: var(--text);
--      border-radius: 20px;
--      padding: 16px 14px;
--      font-size: 20px;
--      cursor:pointer;
--      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
--    }
--    .btn:active{ transform: scale(0.99); }
--    .btn-danger{
--      background: linear-gradient(180deg, var(--danger), rgba(255,255,255,0.03));
--    }
--
--    .row3{
--      margin-top: 12px;
--      display:grid;
--      grid-template-columns: 1fr 1fr;
--      gap: 12px;
--    }
--
--    /* --- Plan viewer --- */
--    .viewer{
--      margin-top: 14px;
--      padding: 14px;
--    }
--
--    .viewer-title{
--      color: var(--muted);
--      font-size: 18px;
--      margin: 0 0 10px 6px;
--    }
--
--    .plan-wrap{
--      position:relative;
--      border:1px solid var(--stroke);
--      background: rgba(0,0,0,0.12);
--      border-radius: 26px;
--      overflow:hidden;
--      min-height: 360px;
--    }
--
--    #planImg{
--      width:100%;
--      height:auto;
--      display:block;
--      user-select:none;
--      -webkit-user-drag:none;
--      background: rgba(255,255,255,0.03);
--    }
--
--    #marksLayer{
--      position:absolute;
--      inset:0;
--      pointer-events:none; /* Clicks gehen durch auf plan-wrap */
--    }
--
--    .mark{
--      position:absolute;
--      width: 54px;
--      height: 54px;
--      transform: translate(-50%, -60%);
--      pointer-events:none;
--      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
--    }
--
--    /* Pfeile */
--    .nav{
--      position:absolute;
--      top:50%;
--      transform: translateY(-50%);
--      width: 70px;
--      height: 70px;
--      border-radius: 18px;
--      border: 1px solid var(--stroke);
--      background: rgba(255,255,255,0.10);
--      display:flex;
--      align-items:center;
--      justify-content:center;
--      cursor:pointer;
--      user-select:none;
--    }
--    .nav.left{ left:14px; }
--    .nav.right{ right:14px; }
--
--    .nav.disabled{
--      opacity: 0.25;
--      pointer-events:none;
--    }
--
--    .tri{
--      width:0;height:0;
--      border-top:12px solid transparent;
--      border-bottom:12px solid transparent;
--    }
--    .tri.left{
--      border-right:18px solid rgba(255,255,255,0.85);
--      margin-right:4px;
--    }
--    .tri.right{
--      border-left:18px solid rgba(255,255,255,0.85);
--      margin-left:4px;
--    }
--
--    /* Responsive: auf sehr schmalen Displays Page-Pill unter die Selects */
--    @media (max-width: 420px){
--      .controls{
--        grid-template-columns: 1fr 1fr;
--      }
--      .page-pill{
--        grid-column: 1 / span 2;
--        justify-self: end;
--        width: 120px;
--      }
--    }
--  </style>
--</head>
--
--<body>
--  <div class="app">
--    <div class="panel">
--      <div class="controls">
--        <div class="field">
--          <label for="stationSelect">Station</label>
--          <div class="select-wrap">
--            <select id="stationSelect" class="select"></select>
--          </div>
--        </div>
--
--        <div class="field">
--          <label for="levelSelect">Level</label>
--          <div class="select-wrap">
--            <select id="levelSelect" class="select"></select>
--          </div>
--        </div>
--
--        <div id="pageIndicator" class="page-pill">1/1</div>
--      </div>
--
--      <div class="row2">
--        <button id="adminBtn" class="btn">Admin: AUS</button>
--        <button id="clearAllBtn" class="btn btn-danger">ALLES löschen</button>
--      </div>
--
--      <div class="row3">
--        <button id="pngBtn" class="btn">PNG Export</button>
--        <button id="zipBtn" class="btn">ZIP Export</button>
--      </div>
--    </div>
--
--    <div class="panel viewer">
--      <div class="viewer-title">Plan</div>
--
--      <div id="planWrap" class="plan-wrap">
--        <img id="planImg" alt="Plan" />
--        <div id="marksLayer"></div>
--
--        <div id="prevBtn" class="nav left">
--          <div class="tri left"></div>
--        </div>
--        <div id="nextBtn" class="nav right">
--          <div class="tri right"></div>
--        </div>
--      </div>
--    </div>
--  </div>
--
--  <!-- optional: JSZip für ZIP Export -->
--  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
--
--  <script src="data.js"></script>
--  <script src="app.js"></script>
--</body>
--</html>
-+<!doctype html>
-+<html lang="de">
-+<head>
-+  <meta charset="utf-8" />
-+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-+  <title>BMA Wartung</title>
-+
-+  <style>
-+    :root{
-+      --bg-top:#001a34;
-+      --bg-mid:#032142;
-+      --bg-bottom:#093152;
-+      --pill:#1b4168;
-+      --pill-2:#1a3d62;
-+      --stroke: rgba(255,255,255,0.18);
-+      --text: rgba(255,255,255,0.94);
-+      --muted: rgba(255,255,255,0.70);
-+      --shadow: 0 8px 20px rgba(0,0,0,0.22);
-+    }
-+
-+    * { box-sizing: border-box; }
-+    html, body {
-+      margin: 0;
-+      min-height: 100%;
-+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-+      color: var(--text);
-+    }
-+
-+    body{
-+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
-+      padding: env(safe-area-inset-top) 14px env(safe-area-inset-right) 14px env(safe-area-inset-bottom) 14px env(safe-area-inset-left) 14px;
-+    }
-+
-+    .app{ max-width: 430px; margin: 0 auto; }
-+    .panel{ padding: 12px; }
-+
-+    .desktop-only-note{
-+      display:none;
-+      text-align:center;
-+      background: rgba(0,0,0,0.28);
-+      border: 1px solid rgba(255,255,255,0.24);
-+      border-radius: 18px;
-+      padding: 14px;
-+      margin-bottom: 12px;
-+      color: rgba(255,255,255,0.9);
-+      font-size: 15px;
-+    }
-+
-+    .controls{
-+      display:grid;
-+      grid-template-columns: 1fr 1fr auto;
-+      gap: 12px;
-+      align-items: end;
-+    }
-+
-+    .field label{
-+      display:block;
-+      margin: 0 0 6px 6px;
-+      font-size: 15px;
-+      color: var(--muted);
-+    }
-+
-+    .select-wrap{ position:relative; }
-+    .select{
-+      width:100%;
-+      appearance:none;
-+      border:0;
-+      border-radius: 24px;
-+      background: var(--pill);
-+      color: var(--text);
-+      padding: 14px 44px 14px 16px;
-+      font-size: 18px;
-+      outline:none;
-+      box-shadow: var(--shadow);
-+    }
-+    .select-wrap::after{
-+      content:"";
-+      position:absolute;
-+      right:16px;
-+      top:50%;
-+      width:0;
-+      height:0;
-+      border-left:7px solid transparent;
-+      border-right:7px solid transparent;
-+      border-top:9px solid rgba(255,255,255,0.85);
-+      transform: translateY(-20%);
-+      pointer-events:none;
-+    }
-+
-+    .page-pill{
-+      border: 1px solid var(--stroke);
-+      background: rgba(255,255,255,0.08);
-+      border-radius: 24px;
-+      padding: 12px 16px;
-+      font-size: 20px;
-+      min-width: 120px;
-+      text-align:center;
-+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
-+    }
-+    .page-pill::before{ content: "Seite: "; }
-+
-+    .row2,
-+    .row3{
-+      margin-top: 12px;
-+      display:grid;
-+      gap:12px;
-+    }
-+    .row2{ grid-template-columns: 1fr 1fr; }
-+    .row3{ grid-template-columns: 1fr; max-width: 62%; }
-+
-+    .btn{
-+      width:100%;
-+      border:0;
-+      border-radius: 24px;
-+      background: linear-gradient(180deg, var(--pill), var(--pill-2));
-+      color: var(--text);
-+      padding: 14px;
-+      font-size: 20px;
-+      cursor:pointer;
-+      box-shadow: var(--shadow);
-+    }
-+    .btn:active{ transform: scale(0.99); }
-+
-+    .viewer{
-+      margin-top: 8px;
-+      padding: 14px 0 0;
-+      border-top: 1px solid rgba(255,255,255,0.20);
-+    }
-+    .viewer-title{ display:none; }
-+
-+    .plan-wrap{
-+      position:relative;
-+      border-radius: 28px;
-+      border: 1px solid rgba(255,255,255,0.30);
-+      background: rgba(0,0,0,0.14);
-+      overflow:hidden;
-+      min-height: 360px;
-+    }
-+
-+    #planImg{
-+      width:100%;
-+      height:auto;
-+      display:block;
-+      user-select:none;
-+      -webkit-user-drag:none;
-+      background: rgba(255,255,255,0.03);
-+    }
-+
-+    #marksLayer{
-+      position:absolute;
-+      inset:0;
-+      pointer-events:none;
-+    }
-+
-+    .mark{
-+      position:absolute;
-+      width:54px;
-+      height:54px;
-+      transform: translate(-50%, -60%);
-+      pointer-events:none;
-+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
-+    }
-+
-+    .nav{
-+      position:absolute;
-+      bottom:12px;
-+      width:64px;
-+      height:64px;
-+      border-radius: 18px;
-+      border:0;
-+      background: rgba(255,255,255,0.16);
-+      display:flex;
-+      align-items:center;
-+      justify-content:center;
-+      cursor:pointer;
-+      user-select:none;
-+      backdrop-filter: blur(3px);
-+      -webkit-backdrop-filter: blur(3px);
-+    }
-+    .nav.left{ right:86px; }
-+    .nav.right{ right:12px; }
-+    .nav.disabled{ opacity:0.25; pointer-events:none; }
-+
-+    .tri{ width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
-+    .tri.left{ border-right:18px solid rgba(255,255,255,0.85); margin-right:4px; }
-+    .tri.right{ border-left:18px solid rgba(255,255,255,0.85); margin-left:4px; }
-+
-+    @media (max-width: 420px){
-+      .controls{ grid-template-columns: 1fr 1fr; }
-+      .page-pill{ grid-column: 1 / span 2; justify-self: start; }
-+      .row3{ max-width: 100%; }
-+    }
-+
-+    @media (min-width: 820px){
-+      body{
-+        display:flex;
-+        justify-content:center;
-+      }
-+
-+      .desktop-only-note{ display:block; }
-+
-+      .app{
-+        width: 430px;
-+        max-width: 430px;
-+      }
-+    }
-+  </style>
-+</head>
-+
-+<body>
-+  <div class="app">
-+    <div class="desktop-only-note">
-+      Diese App ist für Smartphones optimiert. Bitte am Handy benutzen.
-+    </div>
-+
-+    <div class="panel">
-+      <div class="controls">
-+        <div class="field">
-+          <label for="stationSelect">Station</label>
-+          <div class="select-wrap">
-+            <select id="stationSelect" class="select"></select>
-+          </div>
-+        </div>
-+
-+        <div class="field">
-+          <label for="levelSelect">Level</label>
-+          <div class="select-wrap">
-+            <select id="levelSelect" class="select"></select>
-+          </div>
-+        </div>
-+
-+        <div id="pageIndicator" class="page-pill">1/1</div>
-+      </div>
-+
-+      <div class="row2">
-+        <button id="adminBtn" class="btn">Admin: AUS</button>
-+        <button id="clearAllBtn" class="btn">ALLES löschen</button>
-+      </div>
-+
-+      <div class="row3">
-+        <button id="pngBtn" class="btn">PNG Export</button>
-+        <button id="zipBtn" class="btn">ZIP Export</button>
-+      </div>
-+    </div>
-+
-+    <div class="panel viewer">
-+      <div class="viewer-title">Plan</div>
-+
-+      <div id="planWrap" class="plan-wrap">
-+        <img id="planImg" alt="Plan" />
-+        <div id="marksLayer"></div>
-+
-+        <div id="prevBtn" class="nav left">
-+          <div class="tri left"></div>
-+        </div>
-+        <div id="nextBtn" class="nav right">
-+          <div class="tri right"></div>
-+        </div>
-+      </div>
-+    </div>
-+  </div>
-+
-+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-+  <script src="data.js"></script>
-+  <script src="app.js"></script>
-+</body>
-+</html>
- 
-EOF
-)
+<!-- /mnt/data/index.html -->
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BMA Wartung</title>
 
+  <style>
+    :root{
+      --bg-top:#001a34;
+      --bg-mid:#032142;
+      --bg-bottom:#093152;
+      --pill:#1b4168;
+      --pill-2:#1a3d62;
+      --stroke: rgba(255,255,255,0.18);
+      --text: rgba(255,255,255,0.94);
+      --muted: rgba(255,255,255,0.70);
+      --shadow: 0 8px 20px rgba(0,0,0,0.22);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    body{
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
+      /* FIX: gültiges 4-value padding */
+      padding:
+        env(safe-area-inset-top)
+        calc(14px + env(safe-area-inset-right))
+        env(safe-area-inset-bottom)
+        calc(14px + env(safe-area-inset-left));
+    }
+
+    .app{ max-width: 430px; margin: 0 auto; }
+    .panel{ padding: 12px; }
+
+    .desktop-only-note{
+      display:none;
+      text-align:center;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+      color: rgba(255,255,255,0.9);
+      font-size: 15px;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field label{
+      display:block;
+      margin: 0 0 6px 6px;
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    .select-wrap{ position:relative; }
+    .select{
+      width:100%;
+      appearance:none;
+      border:0;
+      border-radius: 24px;
+      background: var(--pill);
+      color: var(--text);
+      padding: 14px 44px 14px 16px;
+      font-size: 18px;
+      outline:none;
+      box-shadow: var(--shadow);
+    }
+    .select-wrap::after{
+      content:"";
+      position:absolute;
+      right:16px;
+      top:50%;
+      width:0;
+      height:0;
+      border-left:7px solid transparent;
+      border-right:7px solid transparent;
+      border-top:9px solid rgba(255,255,255,0.85);
+      transform: translateY(-20%);
+      pointer-events:none;
+    }
+
+    .page-pill{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 12px 16px;
+      font-size: 20px;
+      min-width: 140px;
+      text-align:center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+    }
+    .page-pill::before{ content: "Seite: "; }
+
+    .row2,
+    .row3{
+      margin-top: 12px;
+      display:grid;
+      gap:12px;
+    }
+    .row2{ grid-template-columns: 1fr 1fr; }
+    /* FIX: Buttons voll breit wie im Screenshot */
+    .row3{ grid-template-columns: 1fr; }
+
+    .btn{
+      width:100%;
+      border:0;
+      border-radius: 24px;
+      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      color: var(--text);
+      padding: 14px;
+      font-size: 20px;
+      cursor:pointer;
+      box-shadow: var(--shadow);
+    }
+    .btn:active{ transform: scale(0.99); }
+
+    .viewer{
+      margin-top: 8px;
+      padding: 14px 0 0;
+      border-top: 1px solid rgba(255,255,255,0.20);
+    }
+    .viewer-title{ display:none; }
+
+    .plan-wrap{
+      position:relative;
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.30);
+      background: rgba(0,0,0,0.14);
+      overflow:hidden;
+      min-height: 360px;
+    }
+
+    #planImg{
+      width:100%;
+      height:auto;
+      display:block;
+      user-select:none;
+      -webkit-user-drag:none;
+      background: rgba(255,255,255,0.03);
+    }
+
+    #marksLayer{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+
+    .mark{
+      position:absolute;
+      width:54px;
+      height:54px;
+      transform: translate(-50%, -60%);
+      pointer-events:none;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
+    }
+
+    .nav{
+      position:absolute;
+      bottom:12px;
+      width:64px;
+      height:64px;
+      border-radius: 18px;
+      border:0;
+      background: rgba(255,255,255,0.16);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+    }
+    .nav.left{ right:86px; }
+    .nav.right{ right:12px; }
+    .nav.disabled{ opacity:0.25; pointer-events:none; }
+
+    .tri{ width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
+    .tri.left{ border-right:18px solid rgba(255,255,255,0.85); margin-right:4px; }
+    .tri.right{ border-left:18px solid rgba(255,255,255,0.85); margin-left:4px; }
+
+    @media (max-width: 420px){
+      .controls{ grid-template-columns: 1fr 1fr; }
+      .page-pill{ grid-column: 1 / span 2; justify-self: start; }
+    }
+
+    @media (min-width: 820px){
+      body{ display:flex; justify-content:center; }
+      .desktop-only-note{ display:block; }
+      .app{ width: 430px; max-width: 430px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="desktop-only-note">
+      Diese App ist für Smartphones optimiert. Bitte am Handy benutzen.
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="field">
+          <label for="stationSelect">Station</label>
+          <div class="select-wrap">
+            <select id="stationSelect" class="select"></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="levelSelect">Level</label>
+          <div class="select-wrap">
+            <select id="levelSelect" class="select"></select>
+          </div>
+        </div>
+
+        <div id="pageIndicator" class="page-pill">1/1</div>
+      </div>
+
+      <div class="row2">
+        <button id="adminBtn" class="btn">Admin: AUS</button>
+        <button id="clearAllBtn" class="btn">ALLES löschen</button>
+      </div>
+
+      <div class="row3">
+        <button id="pngBtn" class="btn">PNG Export</button>
+        <button id="zipBtn" class="btn">ZIP Export</button>
+      </div>
+    </div>
+
+    <div class="panel viewer">
+      <div class="viewer-title">Plan</div>
+
+      <div id="planWrap" class="plan-wrap">
+        <img id="planImg" alt="Plan" />
+        <div id="marksLayer"></div>
+
+        <div id="prevBtn" class="nav left">
+          <div class="tri left"></div>
+        </div>
+        <div id="nextBtn" class="nav right">
+          <div class="tri right"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
