@@ -17,6 +17,7 @@
 }
 
 *{box-sizing:border-box}
+
 body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
@@ -73,6 +74,7 @@ button:hover{
   align-items:center;
   margin-bottom:10px;
 }
+
 .deskRow select,
 .deskRow button,
 .deskRow .pill{
@@ -88,14 +90,13 @@ button:hover{
 
   .mobileGrid{
     display:grid;
-    grid-template-columns:1fr 1fr auto;
+    grid-template-columns:1fr 1fr 1fr;
     gap:var(--gap);
     align-items:end;
     grid-template-areas:
       "station level page"
       "admin delete delete"
-      "png png png"
-      "zip zip zip";
+      "png zip zip";
   }
 
   .g-station{grid-area:station;}
@@ -124,7 +125,7 @@ button:hover{
 }
 
 @media(max-width:650px){
-  #scroller{height:calc(100vh - 220px);}
+  #scroller{height:calc(100vh - 230px);}
 }
 
 #plan{
@@ -223,8 +224,8 @@ button:hover{
 <button class="g-admin" id="adminBtn_m">Admin: AUS</button>
 <button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
 
-<button class="g-png" id="exportPngBtn_m">PNG Export (dieses Bild)</button>
-<button class="g-zip" id="exportZipBtn_m">ZIP Export (ganze Station)</button>
+<button class="g-png" id="exportPngBtn_m">PNG Export</button>
+<button class="g-zip" id="exportZipBtn_m">ZIP Export</button>
 
 </div>
 
@@ -253,6 +254,7 @@ ids.forEach(id=>{
 const desktop=document.getElementById(id);
 const mobile=document.getElementById(id+"_m");
 if(!mobile)return;
+
 if(desktop.tagName==="SELECT"){
 mobile.addEventListener("change",()=>{
 desktop.value=mobile.value;
