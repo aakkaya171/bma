@@ -1,4 +1,4 @@
-<!-- /mnt/data/index.html -->
+<!-- /mnt/data/index.html (ersetze deine <style> + die UI-Struktur im <body> durch das hier) -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -8,149 +8,155 @@
 
   <style>
     :root{
-      --bg-top:#001a34;
-      --bg-mid:#032142;
-      --bg-bottom:#093152;
-      --pill:#1b4168;
-      --pill-2:#1a3d62;
-      --stroke: rgba(255,255,255,0.18);
-      --text: rgba(255,255,255,0.94);
-      --muted: rgba(255,255,255,0.70);
-      --shadow: 0 8px 20px rgba(0,0,0,0.22);
+      --bg-top:#041b2e;
+      --bg-mid:#062744;
+      --bg-bottom:#083455;
+
+      --pill:#123a5d;
+      --pill2:#103551;
+
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+
+      --stroke: rgba(255,255,255,.14);
+      --shadow: 0 10px 24px rgba(0,0,0,.28);
+
+      --r: 26px;
     }
 
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      min-height: 100%;
+    *{ box-sizing: border-box; }
+    html, body{ height: 100%; margin:0; }
+    body{
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
-    }
-
-    body{
-      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
-      /* FIX: gültiges 4-value padding */
+      background: radial-gradient(900px 420px at 35% 18%, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 55%),
+                  linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
       padding:
         env(safe-area-inset-top)
-        calc(14px + env(safe-area-inset-right))
+        calc(18px + env(safe-area-inset-right))
         env(safe-area-inset-bottom)
-        calc(14px + env(safe-area-inset-left));
+        calc(18px + env(safe-area-inset-left));
     }
 
-    .app{ max-width: 430px; margin: 0 auto; }
-    .panel{ padding: 12px; }
-
-    .desktop-only-note{
-      display:none;
-      text-align:center;
-      background: rgba(0,0,0,0.28);
-      border: 1px solid rgba(255,255,255,0.24);
-      border-radius: 18px;
-      padding: 14px;
-      margin-bottom: 12px;
-      color: rgba(255,255,255,0.9);
-      font-size: 15px;
+    .app{
+      width: min(690px, 100%);
+      margin: 0 auto;
+      padding-top: 6px;
     }
 
+    .panel{
+      padding: 18px 10px 12px;
+    }
+
+    /* --- TOP ROW: Station/Level exactly like screenshot --- */
     .controls{
-      display:grid;
-      grid-template-columns: 1fr 1fr auto;
-      gap: 12px;
-      align-items: end;
+      display: grid;
+      grid-template-columns: auto 1fr auto 132px;
+      gap: 12px 14px;
+      align-items: center;
     }
 
-    .field label{
-      display:block;
-      margin: 0 0 6px 6px;
-      font-size: 15px;
+    .klabel{
+      font-size: 22px;
       color: var(--muted);
+      padding-left: 4px;
+      white-space: nowrap;
     }
 
-    .select-wrap{ position:relative; }
+    .select-wrap{ position: relative; }
     .select{
-      width:100%;
-      appearance:none;
-      border:0;
-      border-radius: 24px;
-      background: var(--pill);
+      width: 100%;
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 16px 46px 16px 18px;
+      font-size: 22px;
       color: var(--text);
-      padding: 14px 44px 14px 16px;
-      font-size: 18px;
-      outline:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
       box-shadow: var(--shadow);
+      outline: none;
     }
+
+    /* up/down chevrons like iOS */
     .select-wrap::after{
-      content:"";
+      content: "⇅";
       position:absolute;
-      right:16px;
-      top:50%;
-      width:0;
-      height:0;
-      border-left:7px solid transparent;
-      border-right:7px solid transparent;
-      border-top:9px solid rgba(255,255,255,0.85);
-      transform: translateY(-20%);
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255,255,255,.78);
+      font-size: 20px;
       pointer-events:none;
     }
 
-    .page-pill{
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,0.08);
-      border-radius: 24px;
-      padding: 12px 16px;
-      font-size: 20px;
-      min-width: 140px;
-      text-align:center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+    /* --- Chips & buttons --- */
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      border-radius: 999px;
+      padding: 14px 18px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+      font-size: 26px;
+      font-weight: 650;
     }
-    .page-pill::before{ content: "Seite: "; }
 
-    .row2,
-    .row3{
-      margin-top: 12px;
-      display:grid;
-      gap:12px;
+    .row{
+      display:flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 16px;
     }
-    .row2{ grid-template-columns: 1fr 1fr; }
-    /* FIX: Buttons voll breit wie im Screenshot */
-    .row3{ grid-template-columns: 1fr; }
 
     .btn{
-      width:100%;
-      border:0;
-      border-radius: 24px;
-      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      border: 0;
+      border-radius: 999px;
+      padding: 16px 18px;
+      font-size: 24px;
       color: var(--text);
-      padding: 14px;
-      font-size: 20px;
-      cursor:pointer;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
       box-shadow: var(--shadow);
+      cursor: pointer;
+      text-align: left;            /* screenshot: text starts left */
+      display:inline-flex;
+      align-items:center;
+      justify-content:flex-start;
+      min-height: 58px;
+      user-select:none;
     }
-    .btn:active{ transform: scale(0.99); }
+    .btn:active{ transform: scale(.99); }
 
-    .viewer{
-      margin-top: 8px;
-      padding: 14px 0 0;
-      border-top: 1px solid rgba(255,255,255,0.20);
+    .btn.half{
+      flex: 1 1 240px;
     }
-    .viewer-title{ display:none; }
+    .btn.full{
+      width: 100%;
+    }
+
+    /* --- Preview --- */
+    .viewer{
+      margin-top: 18px;
+      padding: 0 10px 18px;
+    }
 
     .plan-wrap{
-      position:relative;
       border-radius: 28px;
-      border: 1px solid rgba(255,255,255,0.30);
-      background: rgba(0,0,0,0.14);
-      overflow:hidden;
-      min-height: 360px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(0,0,0,.14);
+      overflow: hidden;
+      min-height: 420px;
+      box-shadow: 0 14px 34px rgba(0,0,0,.32);
+      position: relative;
     }
 
     #planImg{
-      width:100%;
-      height:auto;
+      width: 100%;
+      height: auto;
       display:block;
+      background: rgba(255,255,255,.02);
+      -webkit-user-drag: none;
       user-select:none;
-      -webkit-user-drag:none;
-      background: rgba(255,255,255,0.03);
     }
 
     #marksLayer{
@@ -165,95 +171,82 @@
       height:54px;
       transform: translate(-50%, -60%);
       pointer-events:none;
-      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,.35));
     }
 
     .nav{
       position:absolute;
-      bottom:12px;
-      width:64px;
-      height:64px;
+      bottom: 14px;
+      width: 62px;
+      height: 62px;
       border-radius: 18px;
       border:0;
-      background: rgba(255,255,255,0.16);
+      background: rgba(255,255,255,.14);
       display:flex;
       align-items:center;
       justify-content:center;
       cursor:pointer;
-      user-select:none;
       backdrop-filter: blur(3px);
       -webkit-backdrop-filter: blur(3px);
     }
-    .nav.left{ right:86px; }
-    .nav.right{ right:12px; }
-    .nav.disabled{ opacity:0.25; pointer-events:none; }
+    .nav.left{ right: 86px; }
+    .nav.right{ right: 14px; }
+    .nav.disabled{ opacity: .25; pointer-events:none; }
 
     .tri{ width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
     .tri.left{ border-right:18px solid rgba(255,255,255,0.85); margin-right:4px; }
     .tri.right{ border-left:18px solid rgba(255,255,255,0.85); margin-left:4px; }
 
-    @media (max-width: 420px){
-      .controls{ grid-template-columns: 1fr 1fr; }
-      .page-pill{ grid-column: 1 / span 2; justify-self: start; }
-    }
-
-    @media (min-width: 820px){
-      body{ display:flex; justify-content:center; }
-      .desktop-only-note{ display:block; }
-      .app{ width: 430px; max-width: 430px; }
+    @media (max-width: 520px){
+      .controls{
+        grid-template-columns: auto 1fr;
+      }
+      .klabel:nth-child(3){ grid-column: 1; }
+      #levelWrap{ grid-column: 2; }
     }
   </style>
 </head>
 
 <body>
   <div class="app">
-    <div class="desktop-only-note">
-      Diese App ist für Smartphones optimiert. Bitte am Handy benutzen.
-    </div>
-
     <div class="panel">
       <div class="controls">
-        <div class="field">
-          <label for="stationSelect">Station</label>
-          <div class="select-wrap">
-            <select id="stationSelect" class="select"></select>
-          </div>
+        <div class="klabel">Station:</div>
+        <div class="select-wrap">
+          <select id="stationSelect" class="select"></select>
         </div>
 
-        <div class="field">
-          <label for="levelSelect">Level</label>
-          <div class="select-wrap">
-            <select id="levelSelect" class="select"></select>
-          </div>
+        <div class="klabel">Level:</div>
+        <div class="select-wrap" id="levelWrap">
+          <select id="levelSelect" class="select"></select>
         </div>
-
-        <div id="pageIndicator" class="page-pill">1/1</div>
       </div>
 
-      <div class="row2">
-        <button id="adminBtn" class="btn">Admin: AUS</button>
-        <button id="clearAllBtn" class="btn">ALLES löschen</button>
+      <div class="row">
+        <div id="pageIndicator" class="chip">Seite: 1/1</div>
       </div>
 
-      <div class="row3">
-        <button id="pngBtn" class="btn">PNG Export</button>
-        <button id="zipBtn" class="btn">ZIP Export</button>
+      <div class="row">
+        <button id="adminBtn" class="btn half">Admin: AUS</button>
+        <button id="clearAllBtn" class="btn half">ALLES löschen</button>
+      </div>
+
+      <div class="row">
+        <button id="pngBtn" class="btn full">PNG Export (dieses Bild)</button>
+      </div>
+
+      <div class="row">
+        <button id="zipBtn" class="btn full">ZIP Export (ganze Station)</button>
       </div>
     </div>
 
-    <div class="panel viewer">
-      <div class="viewer-title">Plan</div>
-
+    <div class="viewer">
       <div id="planWrap" class="plan-wrap">
         <img id="planImg" alt="Plan" />
         <div id="marksLayer"></div>
 
-        <div id="prevBtn" class="nav left">
-          <div class="tri left"></div>
-        </div>
-        <div id="nextBtn" class="nav right">
-          <div class="tri right"></div>
-        </div>
+        <div id="prevBtn" class="nav left"><div class="tri left"></div></div>
+        <div id="nextBtn" class="nav right"><div class="tri right"></div></div>
       </div>
     </div>
   </div>
