@@ -8,7 +8,6 @@
   <style>
     :root{
       --bg:#0b1a2a;
-      --panel:#0f2438;
       --btn:#1c344d;
       --btnHover:#2a4a6a;
       --txt:#ffffff;
@@ -49,14 +48,14 @@
       font-weight:700;
     }
 
-    /* ===== Desktop: bleibt flexibel wie vorher ===== */
+    /* Desktop */
     .deskRow{
       display:flex; flex-wrap:wrap; gap:var(--gap); align-items:center;
       margin-bottom:10px;
     }
     .deskRow:last-child{margin-bottom:0}
 
-    /* ===== Mobile Grid (wie auf deinem Bild) ===== */
+    /* Mobile */
     .mobileGrid{ display:none; }
 
     @media (max-width: 650px){
@@ -67,25 +66,18 @@
         gap:var(--gap);
       }
 
-      /* obere Reihe: Station + Level */
       .g-station{ grid-column:1; }
       .g-level{ grid-column:2; }
 
-      /* 2. Reihe: Seite links + 2 freie Felder rechts (deine weißen Felder) */
-      .g-page{ grid-column:1; }
-      .g-slot1{ grid-column:2; }
+      /* Seite links, rechts frei ist jetzt entfernt */
+      .g-page{ grid-column:1 / span 2; }
 
-      /* 3. Reihe: Admin links + Alles löschen rechts */
       .g-admin{ grid-column:1; }
       .g-delete{ grid-column:2; }
 
-      /* 4. Reihe: PNG breit über beide Spalten */
       .g-png{ grid-column:1 / span 2; }
-
-      /* 5. Reihe: ZIP breit über beide Spalten */
       .g-zip{ grid-column:1 / span 2; }
 
-      /* bisschen größere Touch-Flächen */
       select,button,.pill{ padding:12px 14px; font-size:15px; }
     }
 
@@ -100,7 +92,7 @@
       -webkit-overflow-scrolling:touch;
     }
     @media (max-width:650px){
-      #scroller{ height: calc(100vh - 260px); }
+      #scroller{ height: calc(100vh - 250px); }
     }
 
     #plan{
@@ -156,7 +148,7 @@
 <body>
   <header>
 
-    <!-- ===== Desktop Layout ===== -->
+    <!-- Desktop -->
     <div class="deskRow">
       <label>Station:</label>
       <select id="stationSelect"></select>
@@ -174,7 +166,7 @@
       <button id="exportZipBtn">ZIP Export (ganze Station)</button>
     </div>
 
-    <!-- ===== Mobile Layout (wie deine Skizze) ===== -->
+    <!-- Mobile -->
     <div class="mobileGrid">
       <div class="g-station">
         <label>Station:</label><br/>
@@ -188,11 +180,6 @@
 
       <div class="g-page">
         <span class="pill" id="pageInfo_m">Seite: 1/1</span>
-      </div>
-
-      <!-- 2 freie Felder rechts (du kannst später dort was reinlegen) -->
-      <div class="g-slot1">
-        <span class="pill" id="mobileSlot1" style="opacity:.35;">&nbsp;</span>
       </div>
 
       <button class="g-admin" id="adminBtn_m">Admin: AUS</button>
@@ -218,15 +205,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
   <script src="data.js"></script>
 
-  <!-- Kleines Sync-Script: mobile Controls spiegeln desktop IDs,
-       damit app.js nicht geändert werden muss -->
+  <!-- Mobile Controls spiegeln desktop IDs -->
   <script>
-    // Du hast jetzt doppelte Controls (desktop + mobile).
-    // Wir spiegeln die mobilen auf die originalen Elemente,
-    // indem wir mobile Events auf die desktop IDs weiterleiten.
     window.addEventListener("DOMContentLoaded", () => {
       const station = document.getElementById("stationSelect");
       const level = document.getElementById("levelSelect");
@@ -246,18 +228,14 @@
       const pngM = document.getElementById("exportPngBtn_m");
       const zipM = document.getElementById("exportZipBtn_m");
 
-      // Optionen von desktop nach mobile kopieren (nachdem app.js sie befüllt)
       const syncSelectOptions = () => {
         stationM.innerHTML = station.innerHTML;
         levelM.innerHTML = level.innerHTML;
         stationM.value = station.value;
         levelM.value = level.value;
       };
-
-      // pageInfo spiegeln
       const syncPage = () => { pageM.textContent = page.textContent; };
 
-      // Events: mobile -> desktop
       stationM.addEventListener("change", () => {
         station.value = stationM.value;
         station.dispatchEvent(new Event("change"));
@@ -272,10 +250,8 @@
       pngM.addEventListener("click", () => png.click());
       zipM.addEventListener("click", () => zip.click());
 
-      // Desktop-Änderungen zurück auf mobile spiegeln (Polling kurz, simpel & stabil)
       let lastStation = "", lastLevel = "", lastPage = "";
       setInterval(() => {
-        // sobald app.js befüllt hat:
         if (station.innerHTML && stationM.innerHTML !== station.innerHTML) syncSelectOptions();
 
         if (station.value !== lastStation || level.value !== lastLevel) {
