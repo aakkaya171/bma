@@ -7,69 +7,72 @@
 
   <style>
     :root{
-      --bg1:#021a33;
-      --bg2:#082844;
-      --pill:#1a3f66;
-      --pill-soft:#173759;
-      --stroke: rgba(255,255,255,0.20);
-      --text: rgba(255,255,255,0.93);
-      --muted: rgba(255,255,255,0.65);
-      --shadow: 0 8px 22px rgba(0,0,0,0.22);
+      --bg-top:#001a34;
+      --bg-mid:#032142;
+      --bg-bottom:#093152;
+      --pill:#1b4168;
+      --pill-2:#1a3d62;
+      --stroke: rgba(255,255,255,0.18);
+      --text: rgba(255,255,255,0.94);
+      --muted: rgba(255,255,255,0.70);
+      --shadow: 0 8px 20px rgba(0,0,0,0.22);
     }
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--text); }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
     body{
-      background: linear-gradient(180deg, #00172f 0%, var(--bg1) 40%, var(--bg2) 100%);
-      padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom) 14px;
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
+      padding: env(safe-area-inset-top) 14px env(safe-area-inset-right) 14px env(safe-area-inset-bottom) 14px env(safe-area-inset-left) 14px;
     }
 
-    .app{
-      max-width: 920px;
-      margin: 0 auto;
-    }
-
+    .app{ max-width: 920px; margin: 0 auto; }
     .panel{ padding: 12px; }
-    .controls-panel{ padding-top: 6px; }
 
     .controls{
       display:grid;
       grid-template-columns: 1fr 1fr auto;
       gap: 12px;
-      align-items:end;
+      align-items: end;
     }
 
     .field label{
       display:block;
+      margin: 0 0 6px 6px;
       font-size: 15px;
       color: var(--muted);
-      margin: 0 0 6px 6px;
     }
 
+    .select-wrap{ position:relative; }
     .select{
       width:100%;
       appearance:none;
       border:0;
+      border-radius: 24px;
       background: var(--pill);
       color: var(--text);
-      border-radius: 24px;
       padding: 14px 44px 14px 16px;
       font-size: 18px;
       outline:none;
       box-shadow: var(--shadow);
     }
-    .select-wrap{ position:relative; }
-    .select-wrap:after{
+    .select-wrap::after{
       content:"";
       position:absolute;
-      right:16px; top:50%;
-      width:0; height:0;
+      right:16px;
+      top:50%;
+      width:0;
+      height:0;
       border-left:7px solid transparent;
       border-right:7px solid transparent;
       border-top:9px solid rgba(255,255,255,0.85);
       transform: translateY(-20%);
       pointer-events:none;
-      opacity:0.85;
     }
 
     .page-pill{
@@ -80,54 +83,44 @@
       font-size: 20px;
       min-width: 120px;
       text-align:center;
-      align-self:end;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
     }
-
     .page-pill::before{ content: "Seite: "; }
 
-    .row2{
+    .row2,
+    .row3{
       margin-top: 12px;
       display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap:12px;
     }
+    .row2{ grid-template-columns: 1fr 1fr; }
+    .row3{ grid-template-columns: 1fr; max-width: 62%; }
 
     .btn{
       width:100%;
       border:0;
-      background: linear-gradient(180deg, #1c436c, #183b60);
-      color: var(--text);
       border-radius: 24px;
-      padding: 14px 14px;
+      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      color: var(--text);
+      padding: 14px;
       font-size: 20px;
       cursor:pointer;
       box-shadow: var(--shadow);
     }
     .btn:active{ transform: scale(0.99); }
-    .btn-danger{ background: linear-gradient(180deg, #1a3f66, #173759); }
-
-    .row3{
-      margin-top: 12px;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      max-width: 62%;
-    }
 
     .viewer{
       margin-top: 8px;
       padding: 14px 0 0;
-      border-top: 1px solid rgba(255,255,255,0.18);
+      border-top: 1px solid rgba(255,255,255,0.20);
     }
-
     .viewer-title{ display:none; }
 
     .plan-wrap{
       position:relative;
-      border:1px solid rgba(255,255,255,0.30);
-      background: rgba(0,0,0,0.14);
       border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.30);
+      background: rgba(0,0,0,0.14);
       overflow:hidden;
       min-height: 360px;
     }
@@ -149,8 +142,8 @@
 
     .mark{
       position:absolute;
-      width: 54px;
-      height: 54px;
+      width:54px;
+      height:54px;
       transform: translate(-50%, -60%);
       pointer-events:none;
       filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
@@ -159,12 +152,10 @@
     .nav{
       position:absolute;
       bottom:12px;
-      top:auto;
-      transform:none;
-      width: 64px;
-      height: 64px;
+      width:64px;
+      height:64px;
       border-radius: 18px;
-      border: 0;
+      border:0;
       background: rgba(255,255,255,0.16);
       display:flex;
       align-items:center;
@@ -174,12 +165,11 @@
       backdrop-filter: blur(3px);
       -webkit-backdrop-filter: blur(3px);
     }
-    .nav.left{ right:86px; left:auto; }
+    .nav.left{ right:86px; }
     .nav.right{ right:12px; }
+    .nav.disabled{ opacity:0.25; pointer-events:none; }
 
-    .nav.disabled{ opacity: 0.25; pointer-events:none; }
-
-    .tri{ width:0;height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
+    .tri{ width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
     .tri.left{ border-right:18px solid rgba(255,255,255,0.85); margin-right:4px; }
     .tri.right{ border-left:18px solid rgba(255,255,255,0.85); margin-left:4px; }
 
@@ -193,7 +183,7 @@
 
 <body>
   <div class="app">
-    <div class="panel controls-panel">
+    <div class="panel">
       <div class="controls">
         <div class="field">
           <label for="stationSelect">Station</label>
@@ -214,7 +204,7 @@
 
       <div class="row2">
         <button id="adminBtn" class="btn">Admin: AUS</button>
-        <button id="clearAllBtn" class="btn btn-danger">ALLES löschen</button>
+        <button id="clearAllBtn" class="btn">ALLES löschen</button>
       </div>
 
       <div class="row3">
@@ -240,9 +230,7 @@
     </div>
   </div>
 
-  <!-- optional: JSZip für ZIP Export -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
