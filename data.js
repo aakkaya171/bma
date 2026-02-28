@@ -1,6 +1,6 @@
 // data.js
 // Struktur:
-// STATIONS[stationName].levels[levelKey] = [ { src: "images/...", marks: [] }, ... ]
+// window.STATIONS[stationKey].levels[levelKey] = [ { src, marks:[{x,y}] }, ...pages ]
 
 window.STATIONS = {
   "Vorgartenstraße U1": {
