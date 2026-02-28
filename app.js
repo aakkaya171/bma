@@ -1,79 +1,64 @@
-// app.js (KOMPLETT ERSETZEN)
+// app.js
 (() => {
   const STATIONS = window.STATIONS || {};
-  const LS_KEY = "bma_marks_v1";
 
-  // ---- DOM (IDs passen jetzt zu index.html) ----
   const stationSelect = document.getElementById("stationSelect");
   const levelSelect   = document.getElementById("levelSelect");
-  const pagePill      = document.getElementById("pagePill");
+  const pageIndicator = document.getElementById("pageIndicator");
 
-  const btnAdmin      = document.getElementById("btnAdmin");
-  const btnClearAll   = document.getElementById("btnClearAll");
-  const btnExportPng  = document.getElementById("btnExportPng");
-  const btnExportZip  = document.getElementById("btnExportZip");
+  const adminBtn   = document.getElementById("adminBtn");
+  const clearAllBtn= document.getElementById("clearAllBtn");
+  const pngBtn     = document.getElementById("pngBtn");
+  const zipBtn     = document.getElementById("zipBtn");
 
-  const planImg       = document.getElementById("planImg");
-  const markCanvas    = document.getElementById("markCanvas");
-  const canvasWrap    = document.getElementById("canvasWrap");
+  const planWrap   = document.getElementById("planWrap");
+  const planImg    = document.getElementById("planImg");
+  const marksLayer = document.getElementById("marksLayer");
 
-  const btnPrev       = document.getElementById("btnPrev");
-  const btnNext       = document.getElementById("btnNext");
+  const prevBtn    = document.getElementById("prevBtn");
+  const nextBtn    = document.getElementById("nextBtn");
 
-  const ctx = markCanvas.getContext("2d");
-
-  // ---- State ----
-  let adminMode = false;
+  // ---- State
+  let adminEnabled = false;
   let currentStation = null;
-  let currentLevel = null;
-  let currentIndex = 0;
+  let currentLevel   = null;
+  let currentPageIdx = 0;
 
-  // store: { [src]: [ {x:0..1, y:0..1} ] }
-  let store = loadStore();
-
-  function loadStore() {
+  // ---- Storage helpers
+  const storageKey = () => `bma_marks_v2_${currentStation}__${currentLevel}`;
+  const loadSavedMarks = () => {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw ? JSON.parse(raw) : {};
+      const raw = localStorage.getItem(storageKey());
+      if (!raw) return null;
+      return JSON.parse(raw);
     } catch {
-      return {};
+      return null;
     }
-  }
-  function saveStore() {
-    localStorage.setItem(LS_KEY, JSON.stringify(store));
-  }
+  };
+  const saveMarks = (pages) => {
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(pages));
+    } catch {}
+  };
 
-  function resolveUrl(rel) {
-    return new URL(rel, window.location.href).toString();
-  }
-
-  function safeName(s){ return String(s||"").replace(/[^\w\-+]+/g,"_"); }
-
-  function getPages(stationName, levelKey) {
-    const st = STATIONS[stationName];
-    if (!st) return [];
-    const arr = st.levels?.[levelKey];
-    return Array.isArray(arr) ? arr : [];
+  // ---- UI helpers
+  function setAdminUI() {
+    adminBtn.textContent = adminEnabled ? "Admin: EIN" : "Admin: AUS";
   }
 
-  function currentPage() {
-    const pages = getPages(currentStation, currentLevel);
-    return pages[currentIndex] || null;
+  function setNavDisabled() {
+    const pages = getPages();
+    const max = Math.max(0, pages.length - 1);
+
+    prevBtn.classList.toggle("disabled", currentPageIdx <= 0);
+    nextBtn.classList.toggle("disabled", currentPageIdx >= max);
+
+    pageIndicator.textContent = `${pages.length ? (currentPageIdx + 1) : 0}/${pages.length || 0}`;
   }
 
-  // ---- UI ----
-  function buildStationOptions() {
+  function populateStations() {
     stationSelect.innerHTML = "";
     const names = Object.keys(STATIONS);
-
-    if (names.length === 0) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Keine Stationen";
-      stationSelect.appendChild(opt);
-      return;
-    }
-
     for (const name of names) {
       const opt = document.createElement("option");
       opt.value = name;
@@ -82,401 +67,374 @@
     }
   }
 
-  function buildLevelOptions(stationName) {
+  function populateLevels(stationName) {
     levelSelect.innerHTML = "";
-    const levels = STATIONS[stationName]?.levels ? Object.keys(STATIONS[stationName].levels) : [];
-
-    if (levels.length === 0) {
+    const levels = Object.keys(STATIONS[stationName]?.levels || {});
+    for (const lvl of levels) {
       const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Keine Level";
-      levelSelect.appendChild(opt);
-      return;
-    }
-
-    for (const lv of levels) {
-      const opt = document.createElement("option");
-      opt.value = lv;
-      opt.textContent = lv;
+      opt.value = lvl;
+      opt.textContent = lvl;
       levelSelect.appendChild(opt);
     }
   }
 
-  function setAdminUI() {
-    btnAdmin.textContent = adminMode ? "Admin: EIN" : "Admin: AUS";
+  function getPages() {
+    if (!currentStation || !currentLevel) return [];
+    const basePages = STATIONS[currentStation]?.levels?.[currentLevel] || [];
+    return basePages;
   }
 
-  function updateNavUI() {
-    const pages = getPages(currentStation, currentLevel);
-    const total = pages.length || 1;
-    const idx = Math.min(currentIndex, total - 1);
-
-    pagePill.textContent = `Seite: ${idx + 1}/${total}`;
-    btnPrev.classList.toggle("disabled", idx <= 0);
-    btnNext.classList.toggle("disabled", idx >= total - 1);
-  }
-
-  // ---- Canvas sizing ----
-  function resizeCanvasToImage() {
-    const r = planImg.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-
-    markCanvas.width  = Math.floor(r.width * dpr);
-    markCanvas.height = Math.floor(r.height * dpr);
-
-    markCanvas.style.width  = `${r.width}px`;
-    markCanvas.style.height = `${r.height}px`;
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawMarks();
-  }
-
-  function drawBigCheck(x, y) {
-    const size = 46;
-
-    ctx.save();
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-
-    // Outline
-    ctx.strokeStyle = "rgba(0,0,0,.85)";
-    ctx.lineWidth = 12;
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.50, y + size * 0.05);
-    ctx.lineTo(x - size * 0.15, y + size * 0.38);
-    ctx.lineTo(x + size * 0.55, y - size * 0.45);
-    ctx.stroke();
-
-    // White stroke
-    ctx.strokeStyle = "rgba(255,255,255,.95)";
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.50, y + size * 0.05);
-    ctx.lineTo(x - size * 0.15, y + size * 0.38);
-    ctx.lineTo(x + size * 0.55, y - size * 0.45);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  function drawMarks() {
-    const page = currentPage();
-    const w = markCanvas.clientWidth;
-    const h = markCanvas.clientHeight;
-
-    ctx.clearRect(0, 0, w, h);
-
-    if (!page || !page.src) return;
-
-    const marks = store[page.src] || [];
-    for (const m of marks) {
-      const x = m.x * w;
-      const y = m.y * h;
-      drawBigCheck(x, y);
+  function hydrateFromStorageIntoData() {
+    const pages = getPages();
+    const saved = loadSavedMarks();
+    if (Array.isArray(saved) && saved.length === pages.length) {
+      for (let i = 0; i < pages.length; i++) {
+        pages[i].marks = Array.isArray(saved[i].marks) ? saved[i].marks : [];
+      }
     }
   }
 
-  // ---- Click -> normalized coords ----
-  function getNormalizedCoords(ev) {
-    const page = currentPage();
-    if (!page) return null;
-
-    const rect = markCanvas.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const y = ev.clientY - rect.top;
-
-    const w = rect.width;
-    const h = rect.height;
-
-    if (x < 0 || y < 0 || x > w || y > h) return null;
-
-    return { nx: x / w, ny: y / h };
-  }
-
-  function findNearestMarkIndex(marks, x, y) {
-    const radius = 0.06; // normalized
-    let best = -1;
-    let bestD = Infinity;
-
-    for (let i = 0; i < marks.length; i++) {
-      const dx = marks[i].x - x;
-      const dy = marks[i].y - y;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    return bestD <= radius ? best : -1;
-  }
-
-  function toggleMarkAt(ev) {
-    // Admin AUS: KEIN hinzufügen UND KEIN entfernen
-    if (!adminMode) return;
-
-    const page = currentPage();
-    if (!page) return;
-
-    const p = getNormalizedCoords(ev);
-    if (!p) return;
-
-    const marks = store[page.src] || [];
-    const i = findNearestMarkIndex(marks, p.nx, p.ny);
-
-    if (i >= 0) marks.splice(i, 1);
-    else marks.push({ x: p.nx, y: p.ny });
-
-    store[page.src] = marks;
-    saveStore();
-    drawMarks();
-  }
-
-  // ---- Image load ----
-  function loadCurrentImage() {
-    const page = currentPage();
-
-    if (!page || !page.src) {
+  function renderImageAndMarks() {
+    const pages = getPages();
+    if (!pages.length) {
       planImg.removeAttribute("src");
-      ctx.clearRect(0, 0, markCanvas.clientWidth, markCanvas.clientHeight);
+      marksLayer.innerHTML = "";
+      pageIndicator.textContent = "0/0";
       return;
     }
 
-    planImg.onload = () => resizeCanvasToImage();
-    planImg.onerror = () => {
-      // falls Bildpfad falsch ist, wenigstens UI nicht crashen
-      resizeCanvasToImage();
-    };
+    const page = pages[currentPageIdx];
+    planImg.src = page.src;
 
-    planImg.src = resolveUrl(page.src);
+    marksLayer.innerHTML = "";
+    for (const m of page.marks) {
+      const el = document.createElement("img");
+      el.className = "mark";
+      el.src = makeCheckSVGDataURL();
+      el.style.left = `${m.x * 100}%`;
+      el.style.top  = `${m.y * 100}%`;
+      marksLayer.appendChild(el);
+    }
+
+    setNavDisabled();
   }
 
-  // ---- Station/Level/Page ----
-  function setStation(name) {
-    currentStation = name;
-    buildLevelOptions(name);
-
-    const firstLevel = levelSelect.value || Object.keys(STATIONS[name]?.levels || {})[0] || null;
-    currentLevel = firstLevel;
-    if (firstLevel) levelSelect.value = firstLevel;
-
-    currentIndex = 0;
-    updateNavUI();
-    loadCurrentImage();
+  // gleiches Häkchen-Design (weiß mit schwarzer Kontur)
+  function makeCheckSVGDataURL() {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
+        <path d="M18 49 L38 66 L72 26" fill="none" stroke="black" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+        <path d="M18 49 L38 66 L72 26" fill="none" stroke="white" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `.trim();
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
-  function setLevel(levelKey) {
-    currentLevel = levelKey;
-    currentIndex = 0;
-    updateNavUI();
-    loadCurrentImage();
+  function getRelativeClickPos(evt) {
+    const rect = planWrap.getBoundingClientRect();
+    const clientX = (evt.touches && evt.touches[0]) ? evt.touches[0].clientX : evt.clientX;
+    const clientY = (evt.touches && evt.touches[0]) ? evt.touches[0].clientY : evt.clientY;
+
+    const x = (clientX - rect.left) / rect.width;
+    const y = (clientY - rect.top) / rect.height;
+    return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
   }
 
-  function setPage(idx) {
-    const pages = getPages(currentStation, currentLevel);
+  function toggleMarkAt(x, y) {
+    const pages = getPages();
     if (!pages.length) return;
 
-    currentIndex = Math.max(0, Math.min(idx, pages.length - 1));
-    updateNavUI();
-    loadCurrentImage();
-  }
+    const page = pages[currentPageIdx];
 
-  // ---- Clear All ----
-  function clearAll() {
-    if (!adminMode) {
-      alert("Admin ist AUS. Zum Löschen zuerst Admin: EIN aktivieren.");
-      return;
-    }
-
-    const ok = prompt("ALLES löschen? Passwort eingeben:");
-    if (ok !== "1705") {
-      alert("Falsches Passwort.");
-      return;
-    }
-
-    store = {};
-    saveStore();
-    drawMarks();
-  }
-
-  // ---- Export PNG ----
-  async function exportPNGCurrent() {
-    const page = currentPage();
-    if (!page) return alert("Kein Bild.");
-
-    // Bild original laden
-    const baseImg = new Image();
-    baseImg.crossOrigin = "anonymous";
-    baseImg.src = resolveUrl(page.src);
-    await baseImg.decode().catch(()=>{});
-
-    const off = document.createElement("canvas");
-    off.width = baseImg.naturalWidth || 1200;
-    off.height = baseImg.naturalHeight || 800;
-
-    const octx = off.getContext("2d");
-    octx.drawImage(baseImg, 0, 0, off.width, off.height);
-
-    const marks = store[page.src] || [];
-    for (const m of marks) {
-      const x = m.x * off.width;
-      const y = m.y * off.height;
-
-      const size = Math.max(40, Math.min(90, off.width * 0.05));
-      octx.save();
-      octx.lineJoin = "round";
-      octx.lineCap = "round";
-
-      octx.strokeStyle = "rgba(0,0,0,.85)";
-      octx.lineWidth = size * 0.26;
-      octx.beginPath();
-      octx.moveTo(x - size * 0.50, y + size * 0.05);
-      octx.lineTo(x - size * 0.15, y + size * 0.38);
-      octx.lineTo(x + size * 0.55, y - size * 0.45);
-      octx.stroke();
-
-      octx.strokeStyle = "rgba(255,255,255,.95)";
-      octx.lineWidth = size * 0.15;
-      octx.beginPath();
-      octx.moveTo(x - size * 0.50, y + size * 0.05);
-      octx.lineTo(x - size * 0.15, y + size * 0.38);
-      octx.lineTo(x + size * 0.55, y - size * 0.45);
-      octx.stroke();
-
-      octx.restore();
-    }
-
-    off.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${safeName(currentStation)}_${safeName(currentLevel)}_${currentIndex+1}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    }, "image/png");
-  }
-
-  // ---- Export ZIP ----
-  async function ensureJSZip() {
-    if (window.JSZip) return;
-    await new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
+    // Entfernen wenn nahe genug (damit man tippen kann)
+    const hitRadius = 0.045; // ~4.5% der Breite/Höhe
+    const idx = page.marks.findIndex(m => {
+      const dx = m.x - x;
+      const dy = m.y - y;
+      return Math.sqrt(dx*dx + dy*dy) < hitRadius;
     });
+
+    if (idx >= 0) {
+      page.marks.splice(idx, 1);
+    } else {
+      page.marks.push({ x, y });
+    }
+
+    saveMarks(getPages());
+    renderImageAndMarks();
   }
 
+  // ---- Export PNG (aktuelles Bild)
+  async function exportPNGCurrent() {
+    const pages = getPages();
+    if (!pages.length) return;
+
+    const page = pages[currentPageIdx];
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = page.src;
+
+    await new Promise((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("Bild konnte nicht geladen werden (CORS/Path)."));
+    }).catch((e) => {
+      alert(e.message);
+      return null;
+    });
+
+    if (!img.complete) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(img, 0, 0);
+
+    // Zeichne Häkchen als Vektor
+    for (const m of page.marks) {
+      const px = m.x * canvas.width;
+      const py = m.y * canvas.height;
+
+      // Größe relativ
+      const size = Math.max(60, Math.round(canvas.width * 0.05));
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(-0.30*size, 0.05*size);
+      ctx.lineTo(-0.05*size, 0.28*size);
+      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.strokeStyle = "rgba(0,0,0,0.95)";
+      ctx.lineWidth = 0.16*size;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-0.30*size, 0.05*size);
+      ctx.lineTo(-0.05*size, 0.28*size);
+      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 0.10*size;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+    if (!blob) return;
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentStation}_${currentLevel}_Seite-${currentPageIdx+1}.png`.replaceAll(" ", "_");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ---- ZIP Export (ganze Station) – nutzt JSZip CDN
   async function exportZIPStation() {
-    await ensureJSZip();
+    if (typeof JSZip === "undefined") {
+      alert("JSZip ist nicht geladen (Internet?).");
+      return;
+    }
 
+    const zip = new JSZip();
     const station = STATIONS[currentStation];
-    if (!station) return alert("Keine Station.");
+    if (!station) return;
 
-    const zip = new window.JSZip();
-
-    for (const [levelKey, pages] of Object.entries(station.levels || {})) {
-      const folder = zip.folder(levelKey);
+    for (const levelKey of Object.keys(station.levels || {})) {
+      const pages = station.levels[levelKey] || [];
+      // Temporär currentLevel wechseln, damit Storage-Key stimmt:
+      const prevLevel = currentLevel;
+      currentLevel = levelKey;
+      hydrateFromStorageIntoData();
 
       for (let i = 0; i < pages.length; i++) {
-        const p = pages[i];
-
-        const baseImg = new Image();
-        baseImg.crossOrigin = "anonymous";
-        baseImg.src = resolveUrl(p.src);
-        await baseImg.decode().catch(()=>{});
-
-        const off = document.createElement("canvas");
-        off.width = baseImg.naturalWidth || 1200;
-        off.height = baseImg.naturalHeight || 800;
-
-        const octx = off.getContext("2d");
-        octx.drawImage(baseImg, 0, 0, off.width, off.height);
-
-        const marks = store[p.src] || [];
-        for (const m of marks) {
-          const x = m.x * off.width;
-          const y = m.y * off.height;
-          const size = Math.max(40, Math.min(90, off.width * 0.05));
-
-          octx.save();
-          octx.lineJoin = "round";
-          octx.lineCap = "round";
-
-          octx.strokeStyle = "rgba(0,0,0,.85)";
-          octx.lineWidth = size * 0.26;
-          octx.beginPath();
-          octx.moveTo(x - size * 0.50, y + size * 0.05);
-          octx.lineTo(x - size * 0.15, y + size * 0.38);
-          octx.lineTo(x + size * 0.55, y - size * 0.45);
-          octx.stroke();
-
-          octx.strokeStyle = "rgba(255,255,255,.95)";
-          octx.lineWidth = size * 0.15;
-          octx.beginPath();
-          octx.moveTo(x - size * 0.50, y + size * 0.05);
-          octx.lineTo(x - size * 0.15, y + size * 0.38);
-          octx.lineTo(x + size * 0.55, y - size * 0.45);
-          octx.stroke();
-
-          octx.restore();
+        const page = pages[i];
+        const pngBlob = await renderPageToPNGBlob(page).catch(() => null);
+        if (pngBlob) {
+          zip.file(`${currentStation}/${levelKey}/Seite-${i+1}.png`.replaceAll(" ", "_"), pngBlob);
         }
-
-        const pngBlob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
-        const arrayBuf = await pngBlob.arrayBuffer();
-        folder.file(`${safeName(currentStation)}_${safeName(levelKey)}_${i+1}.png`, arrayBuf);
       }
+
+      currentLevel = prevLevel;
     }
 
     const out = await zip.generateAsync({ type: "blob" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(out);
-    a.download = `${safeName(currentStation)}_EXPORT.zip`;
+    a.download = `${currentStation}_Export.zip`.replaceAll(" ", "_");
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    URL.revokeObjectURL(a.href);
+
+    // restore view
+    renderImageAndMarks();
   }
 
-  // ---- Events ----
-  stationSelect.addEventListener("change", () => setStation(stationSelect.value));
-  levelSelect.addEventListener("change", () => setLevel(levelSelect.value));
+  async function renderPageToPNGBlob(page) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = page.src;
 
-  btnAdmin.addEventListener("click", () => {
-    adminMode = !adminMode;
-    setAdminUI();
-  });
+    await new Promise((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("Bild konnte nicht geladen werden (CORS/Path)."));
+    });
 
-  btnClearAll.addEventListener("click", clearAll);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
 
-  btnPrev.addEventListener("click", () => setPage(currentIndex - 1));
-  btnNext.addEventListener("click", () => setPage(currentIndex + 1));
+    for (const m of page.marks) {
+      const px = m.x * canvas.width;
+      const py = m.y * canvas.height;
+      const size = Math.max(60, Math.round(canvas.width * 0.05));
 
-  btnExportPng.addEventListener("click", exportPNGCurrent);
-  btnExportZip.addEventListener("click", exportZIPStation);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
-  // Tap/click auf Overlay
-  markCanvas.addEventListener("click", toggleMarkAt);
+      ctx.beginPath();
+      ctx.moveTo(-0.30*size, 0.05*size);
+      ctx.lineTo(-0.05*size, 0.28*size);
+      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.strokeStyle = "rgba(0,0,0,0.95)";
+      ctx.lineWidth = 0.16*size;
+      ctx.stroke();
 
-  // Resize
-  window.addEventListener("resize", () => resizeCanvasToImage());
+      ctx.beginPath();
+      ctx.moveTo(-0.30*size, 0.05*size);
+      ctx.lineTo(-0.05*size, 0.28*size);
+      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 0.10*size;
+      ctx.stroke();
 
-  // ---- Init ----
-  function init() {
-    buildStationOptions();
+      ctx.restore();
+    }
 
-    const firstStation = Object.keys(STATIONS)[0] || null;
-    if (!firstStation) {
-      setAdminUI();
-      updateNavUI();
+    return await new Promise(r => canvas.toBlob(r, "image/png"));
+  }
+
+  // ---- Clear (ALLES) – mit Passwort 1705
+  function clearAllWithPassword() {
+    const pw = prompt("Passwort für ALLES löschen:");
+    if (pw !== "1705") {
+      alert("Falsches Passwort.");
       return;
     }
 
-    stationSelect.value = firstStation;
-    setStation(firstStation);
+    // lösche ALLE gespeicherten marks in localStorage (für dieses Projekt)
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("bma_marks_v2_")) keys.push(k);
+    }
+    keys.forEach(k => localStorage.removeItem(k));
 
+    // auch in RAM zurücksetzen
+    for (const s of Object.keys(STATIONS)) {
+      for (const l of Object.keys(STATIONS[s].levels || {})) {
+        for (const p of STATIONS[s].levels[l] || []) p.marks = [];
+      }
+    }
+
+    renderImageAndMarks();
+  }
+
+  // ---- Events
+  stationSelect.addEventListener("change", () => {
+    currentStation = stationSelect.value;
+    populateLevels(currentStation);
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    hydrateFromStorageIntoData();
+    renderImageAndMarks();
+  });
+
+  levelSelect.addEventListener("change", () => {
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    hydrateFromStorageIntoData();
+    renderImageAndMarks();
+  });
+
+  adminBtn.addEventListener("click", () => {
+    adminEnabled = !adminEnabled;
     setAdminUI();
-    updateNavUI();
-    loadCurrentImage();
+  });
+
+  clearAllBtn.addEventListener("click", clearAllWithPassword);
+  pngBtn.addEventListener("click", exportPNGCurrent);
+  zipBtn.addEventListener("click", exportZIPStation);
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPageIdx > 0) {
+      currentPageIdx--;
+      renderImageAndMarks();
+    }
+  });
+  nextBtn.addEventListener("click", () => {
+    const pages = getPages();
+    if (currentPageIdx < pages.length - 1) {
+      currentPageIdx++;
+      renderImageAndMarks();
+    }
+  });
+
+  // Klick auf Plan: nur wenn Admin EIN
+  planWrap.addEventListener("click", (evt) => {
+    if (!adminEnabled) return;
+    const { x, y } = getRelativeClickPos(evt);
+    toggleMarkAt(x, y);
+  });
+
+  // Touch: verhindert “Ghost clicks” beim Scrollen
+  planWrap.addEventListener("touchend", (evt) => {
+    if (!adminEnabled) return;
+    // wenn user wirklich tippt (nicht scrollt), reicht click-event meist – aber iOS ist manchmal komisch
+    // wir machen’s bewusst hier:
+    const { x, y } = getRelativeClickPos(evt);
+    toggleMarkAt(x, y);
+  }, { passive: true });
+
+  // ---- Init
+  function init() {
+    populateStations();
+
+    const firstStation = Object.keys(STATIONS)[0] || null;
+    if (!firstStation) {
+      stationSelect.innerHTML = `<option value="">Keine Stationen</option>`;
+      levelSelect.innerHTML = `<option value="">Keine Level</option>`;
+      pageIndicator.textContent = "0/0";
+      return;
+    }
+
+    currentStation = firstStation;
+    stationSelect.value = firstStation;
+
+    populateLevels(firstStation);
+
+    const firstLevel = Object.keys(STATIONS[firstStation].levels || {})[0] || null;
+    currentLevel = firstLevel;
+    levelSelect.value = firstLevel;
+
+    currentPageIdx = 0;
+    hydrateFromStorageIntoData();
+
+    adminEnabled = false;
+    setAdminUI();
+
+    renderImageAndMarks();
   }
 
   init();
