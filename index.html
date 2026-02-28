@@ -14,6 +14,9 @@
   --muted:rgba(255,255,255,.55);
   --radius:16px;
   --gap:10px;
+
+  --ctlH:52px;       /* einheitliche Höhe mobile */
+  --pillW:86px;      /* fixe Breite für 1/1 */
 }
 
 *{box-sizing:border-box}
@@ -38,7 +41,7 @@ label{
   color:var(--muted);
   font-size:13px;
   display:block;
-  margin-bottom:4px;
+  margin-bottom:6px;
 }
 
 select,button{
@@ -46,24 +49,25 @@ select,button{
   border-radius:var(--radius);
   background:var(--btn);
   color:var(--txt);
-  padding:10px 14px;
-  font-size:14px;
+  padding:12px 14px;
+  font-size:15px;
   box-shadow:inset 0 6px 18px rgba(0,0,0,.22);
   width:100%;
 }
 
-button:hover{
-  background:var(--btnHover);
-  cursor:pointer;
-}
+button:hover{background:var(--btnHover);cursor:pointer;}
 
 .pill{
-  padding:10px 14px;
   border-radius:var(--radius);
   background:rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.1);
-  font-weight:700;
+  font-weight:800;
   text-align:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:var(--ctlH);
+  width:100%;
 }
 
 /* ===== DESKTOP ===== */
@@ -74,23 +78,16 @@ button:hover{
   align-items:center;
   margin-bottom:10px;
 }
-
-.deskRow select,
-.deskRow button,
-.deskRow .pill{
-  width:auto;
-}
-
-/* ===== MOBILE ===== */
+.deskRow select,.deskRow button,.deskRow .pill{width:auto;}
 .mobileGrid{display:none;}
 
+/* ===== MOBILE ===== */
 @media(max-width:650px){
-
   .deskRow{display:none;}
 
   .mobileGrid{
     display:grid;
-    grid-template-columns:1fr 1fr 1fr;
+    grid-template-columns: 2fr 2fr 1fr; /* Station & Level gleich, Page klein */
     gap:var(--gap);
     align-items:end;
     grid-template-areas:
@@ -107,9 +104,29 @@ button:hover{
   .g-png{grid-area:png;}
   .g-zip{grid-area:zip;}
 
-  select,button,.pill{
-    font-size:15px;
-    padding:12px 14px;
+  /* gleiche Höhe überall */
+  select,button{height:var(--ctlH);}
+
+  /* iOS select vereinheitlichen */
+  select{
+    -webkit-appearance:none;
+    appearance:none;
+    padding-right:44px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgba(255,255,255,.75) 50%),
+      linear-gradient(135deg, rgba(255,255,255,.75) 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) 50%,
+      calc(100% - 12px) 50%;
+    background-size:6px 6px, 6px 6px;
+    background-repeat:no-repeat;
+  }
+
+  /* Page Blase fix + zentriert */
+  #pageInfo_m{
+    width:var(--pillW);
+    margin-left:auto;
+    margin-right:auto;
   }
 }
 
@@ -117,7 +134,7 @@ button:hover{
 .viewerWrap{padding:12px;}
 
 #scroller{
-  height:calc(100vh - 160px);
+  height:calc(100vh - 170px);
   overflow:auto;
   border-radius:18px;
   background:rgba(255,255,255,.04);
@@ -125,23 +142,12 @@ button:hover{
 }
 
 @media(max-width:650px){
-  #scroller{height:calc(100vh - 230px);}
+  #scroller{height:calc(100vh - 250px);}
 }
 
-#plan{
-  position:relative;
-  width:max-content;
-}
-
-#planImg{
-  display:block;
-  width:1200px;
-  max-width:none;
-}
-
-@media(max-width:600px){
-  #planImg{width:980px;}
-}
+#plan{position:relative;width:max-content;}
+#planImg{display:block;width:1200px;max-width:none;}
+@media(max-width:600px){#planImg{width:980px;}}
 
 .mark{
   position:absolute;
@@ -153,10 +159,10 @@ button:hover{
   -webkit-text-stroke:5px #fff;
 }
 
+/* Navi Pfeile */
 .nav{
   position:fixed;
-  left:0;
-  right:0;
+  left:0; right:0;
   bottom:18px;
   display:flex;
   justify-content:space-between;
@@ -174,10 +180,7 @@ button:hover{
   border-radius:18px;
 }
 
-.nav button.disabled{
-  opacity:.25;
-  cursor:default;
-}
+.nav button.disabled{opacity:.25;cursor:default;}
 </style>
 </head>
 
@@ -187,61 +190,61 @@ button:hover{
 
 <!-- DESKTOP -->
 <div class="deskRow">
-<label>Station:</label>
-<select id="stationSelect"></select>
+  <label>Station:</label>
+  <select id="stationSelect"></select>
 
-<label>Level:</label>
-<select id="levelSelect"></select>
+  <label>Level:</label>
+  <select id="levelSelect"></select>
 
-<span class="pill" id="pageInfo">Seite: 1/1</span>
+  <span class="pill" id="pageInfo">Seite: 1/1</span>
 </div>
 
 <div class="deskRow">
-<button id="adminBtn">Admin: AUS</button>
-<button id="deleteAllBtn">ALLES löschen</button>
-<button id="exportPngBtn">PNG Export (dieses Bild)</button>
-<button id="exportZipBtn">ZIP Export (ganze Station)</button>
+  <button id="adminBtn">Admin: AUS</button>
+  <button id="deleteAllBtn">ALLES löschen</button>
+  <button id="exportPngBtn">PNG Export (dieses Bild)</button>
+  <button id="exportZipBtn">ZIP Export (ganze Station)</button>
 </div>
 
 <!-- MOBILE -->
 <div class="mobileGrid">
 
-<div class="g-station">
-<label>Station</label>
-<select id="stationSelect_m"></select>
-</div>
+  <div class="g-station">
+    <label>Station</label>
+    <select id="stationSelect_m"></select>
+  </div>
 
-<div class="g-level">
-<label>Level</label>
-<select id="levelSelect_m"></select>
-</div>
+  <div class="g-level">
+    <label>Level</label>
+    <select id="levelSelect_m"></select>
+  </div>
 
-<div class="g-page">
-<label>&nbsp;</label>
-<span class="pill" id="pageInfo_m">1/1</span>
-</div>
+  <div class="g-page">
+    <label>&nbsp;</label>
+    <span class="pill" id="pageInfo_m">1/1</span>
+  </div>
 
-<button class="g-admin" id="adminBtn_m">Admin: AUS</button>
-<button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
+  <button class="g-admin" id="adminBtn_m">Admin: AUS</button>
+  <button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
 
-<button class="g-png" id="exportPngBtn_m">PNG Export</button>
-<button class="g-zip" id="exportZipBtn_m">ZIP Export</button>
+  <button class="g-png" id="exportPngBtn_m">PNG Export</button>
+  <button class="g-zip" id="exportZipBtn_m">ZIP Export</button>
 
 </div>
 
 </header>
 
 <div class="viewerWrap">
-<div id="scroller">
-<div id="plan">
-<img id="planImg">
-</div>
-</div>
+  <div id="scroller">
+    <div id="plan">
+      <img id="planImg">
+    </div>
+  </div>
 </div>
 
 <div class="nav">
-<button id="prevBtn">◀</button>
-<button id="nextBtn">▶</button>
+  <button id="prevBtn">◀</button>
+  <button id="nextBtn">▶</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -249,21 +252,21 @@ button:hover{
 
 <script>
 window.addEventListener("DOMContentLoaded",()=>{
-const ids=["stationSelect","levelSelect","pageInfo","adminBtn","deleteAllBtn","exportPngBtn","exportZipBtn"];
-ids.forEach(id=>{
-const desktop=document.getElementById(id);
-const mobile=document.getElementById(id+"_m");
-if(!mobile)return;
+  const ids=["stationSelect","levelSelect","pageInfo","adminBtn","deleteAllBtn","exportPngBtn","exportZipBtn"];
+  ids.forEach(id=>{
+    const desktop=document.getElementById(id);
+    const mobile=document.getElementById(id+"_m");
+    if(!mobile) return;
 
-if(desktop.tagName==="SELECT"){
-mobile.addEventListener("change",()=>{
-desktop.value=mobile.value;
-desktop.dispatchEvent(new Event("change"));
-});
-}else{
-mobile.addEventListener("click",()=>desktop.click());
-}
-});
+    if(desktop.tagName==="SELECT"){
+      mobile.addEventListener("change",()=>{
+        desktop.value=mobile.value;
+        desktop.dispatchEvent(new Event("change"));
+      });
+    }else{
+      mobile.addEventListener("click",()=>desktop.click());
+    }
+  });
 });
 </script>
 
