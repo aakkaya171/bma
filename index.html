@@ -31,8 +31,20 @@
       padding: env(safe-area-inset-top) 14px env(safe-area-inset-right) 14px env(safe-area-inset-bottom) 14px env(safe-area-inset-left) 14px;
     }
 
-    .app{ max-width: 920px; margin: 0 auto; }
+    .app{ max-width: 430px; margin: 0 auto; }
     .panel{ padding: 12px; }
+
+    .desktop-only-note{
+      display:none;
+      text-align:center;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+      color: rgba(255,255,255,0.9);
+      font-size: 15px;
+    }
 
     .controls{
       display:grid;
@@ -178,11 +190,29 @@
       .page-pill{ grid-column: 1 / span 2; justify-self: start; }
       .row3{ max-width: 100%; }
     }
+
+    @media (min-width: 820px){
+      body{
+        display:flex;
+        justify-content:center;
+      }
+
+      .desktop-only-note{ display:block; }
+
+      .app{
+        width: 430px;
+        max-width: 430px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div class="app">
+    <div class="desktop-only-note">
+      Diese App ist für Smartphones optimiert. Bitte am Handy benutzen.
+    </div>
+
     <div class="panel">
       <div class="controls">
         <div class="field">
