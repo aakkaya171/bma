@@ -1,3 +1,9 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app.js b/app.js
+index 97fc3e09c93c3c6fa6857032c31123862df5ff7f..35efe3fb357c396d8115d51f456fff33ef046603 100644
+--- a/app.js
++++ b/app.js
+@@ -1,441 +1,443 @@
 -// app.js
 -(() => {
 -  const STATIONS = window.STATIONS || {};
@@ -885,4 +891,3 @@
  
 EOF
 )
-
