@@ -1,3 +1,4 @@
+<!-- index.html (KOMPLETT ERSETZEN) -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -9,20 +10,26 @@
     :root{
       --bg1:#061a2b;
       --bg2:#0b2a40;
+
       --glass: rgba(255,255,255,.08);
-      --border: rgba(255,255,255,.10);
+      --glass2: rgba(255,255,255,.10);
+      --border: rgba(255,255,255,.12);
+
       --text: rgba(255,255,255,.92);
       --text2: rgba(255,255,255,.70);
+
       --shadow: 0 18px 50px rgba(0,0,0,.35);
+
+      --r: 22px;
       --h: 54px;
+      --gap: 12px;
     }
 
     *{ box-sizing:border-box; }
-
     body{
       margin:0;
       color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
       background:
         radial-gradient(1200px 800px at 10% 10%, #103a57 0%, transparent 55%),
         radial-gradient(900px 700px at 90% 30%, #0b3a5b 0%, transparent 55%),
@@ -33,22 +40,24 @@
     .wrap{
       max-width: 980px;
       margin: 0 auto;
-      padding: 18px 16px 20px;
+      padding: 18px 16px 22px;
     }
 
+    /* Top Panel */
     .panel{
       background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
       border: 1px solid var(--border);
-      border-radius: 22px;
+      border-radius: var(--r);
       padding: 16px;
       box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .row1{
       display:grid;
-      grid-template-columns: 1fr 1fr auto;
-      gap: 12px;
+      grid-template-columns: 1fr 1fr auto; /* Station | Level | Seite */
+      gap: var(--gap);
       align-items:end;
     }
 
@@ -57,66 +66,84 @@
       font-size: 14px;
       color: var(--text2);
       margin: 0 0 8px;
+      letter-spacing:.2px;
     }
 
     select{
       width:100%;
       height: var(--h);
       border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.06);
       color: var(--text);
       padding: 0 14px;
+      outline:none;
       appearance:none;
+      -webkit-appearance:none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
     }
 
+    /* Seite Bubble rechts neben Level */
     .pagePill{
       height: var(--h);
-      min-width: 86px;
+      min-width: 90px;
       padding: 0 16px;
       display:flex;
       align-items:center;
       justify-content:center;
       border-radius: 20px;
       background: rgba(255,255,255,.07);
-      border: 1px solid rgba(255,255,255,.10);
-      font-weight: 700;
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      font-weight: 800;
+      letter-spacing:.2px;
+      user-select:none;
+      white-space: nowrap;
     }
 
     .row2{
       display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
+      grid-template-columns: 1fr 1fr; /* Admin | Alles löschen */
+      gap: var(--gap);
+      margin-top: var(--gap);
     }
 
     .row3{
       display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
+      grid-template-columns: 1fr 1fr; /* PNG | ZIP */
+      gap: var(--gap);
+      margin-top: var(--gap);
     }
 
     button{
       height: var(--h);
+      width: 100%;
       border-radius: 20px;
-      border: 1px solid rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.06);
       color: var(--text);
       font-size: 18px;
+      letter-spacing:.2px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
       cursor:pointer;
     }
+    button:active{ transform: translateY(1px); }
 
-    #clearAllBtn{
+    /* Alles löschen (leicht rot/dunkel wie bei dir) */
+    #btnClearAll{
       background: linear-gradient(180deg, rgba(255,0,0,.22), rgba(255,255,255,.06));
     }
 
+    /* Viewer */
     .viewer{
       margin-top: 14px;
       background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 26px;
       padding: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       position: relative;
     }
 
@@ -128,13 +155,21 @@
       background: rgba(0,0,0,.15);
     }
 
-    #mapCanvas{
+    #planImg{
+      width:100%;
+      height:auto;
+      display:block;
+    }
+
+    #markCanvas{
       position:absolute;
       left:0; top:0;
       width:100%;
       height:100%;
+      pointer-events:auto;
     }
 
+    /* Pfeile */
     .navBtn{
       position:absolute;
       bottom: 22px;
@@ -146,61 +181,61 @@
       justify-content:center;
       font-size: 26px;
       background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
       user-select:none;
     }
-
-    #navLeft{ left: 22px; }
-    #navRight{ right: 22px; }
+    #btnPrev{ left: 22px; }
+    #btnNext{ right: 22px; }
 
     .disabled{
-      opacity:.35 !important;
+      opacity: .35 !important;
       pointer-events:none !important;
+      filter: grayscale(1);
     }
   </style>
 </head>
 
 <body>
-<div class="wrap">
-  <div class="panel">
+  <div class="wrap">
+    <div class="panel">
+      <div class="row1">
+        <div class="field">
+          <label for="stationSelect">Station</label>
+          <select id="stationSelect"></select>
+        </div>
 
-    <div class="row1">
-      <div class="field">
-        <label>Station</label>
-        <select id="stationSelect"></select>
+        <div class="field">
+          <label for="levelSelect">Level</label>
+          <select id="levelSelect"></select>
+        </div>
+
+        <div class="pagePill" id="pagePill">Seite: 1/1</div>
       </div>
 
-      <div class="field">
-        <label>Level</label>
-        <select id="levelSelect"></select>
+      <div class="row2">
+        <button id="btnAdmin">Admin: AUS</button>
+        <button id="btnClearAll">ALLES löschen</button>
       </div>
 
-      <div class="pagePill" id="pageBubble">1/1</div>
+      <div class="row3">
+        <button id="btnExportPng">PNG Export</button>
+        <button id="btnExportZip">ZIP Export</button>
+      </div>
     </div>
 
-    <div class="row2">
-      <button id="adminBtn">Admin: AUS</button>
-      <button id="clearAllBtn">ALLES löschen</button>
-    </div>
+    <div class="viewer">
+      <div class="canvasWrap" id="canvasWrap">
+        <img id="planImg" alt="Plan" />
+        <canvas id="markCanvas"></canvas>
+      </div>
 
-    <div class="row3">
-      <button id="pngBtn">PNG Export</button>
-      <button id="zipBtn">ZIP Export</button>
+      <div class="navBtn" id="btnPrev">◀</div>
+      <div class="navBtn" id="btnNext">▶</div>
     </div>
-
   </div>
 
-  <div class="viewer">
-    <div class="canvasWrap" id="canvasWrap">
-      <canvas id="mapCanvas"></canvas>
-    </div>
-
-    <div class="navBtn" id="navLeft">◀</div>
-    <div class="navBtn" id="navRight">▶</div>
-  </div>
-</div>
-
-<script src="data.js"></script>
-<script src="app.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
