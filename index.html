@@ -1,41 +1,224 @@
-// data.js
-// Struktur:
-// STATIONS[stationKey].levels[levelKey] = [
-//   { src: "imagePath", marks: [{x,y}, ...] }
-// ]
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>BMA Wartung</title>
 
-window.STATIONS = {
-  "Vorgartenstraße U1": {
-    levels: {
-
-      "N+1": [
-        {
-          src: "images/vorgarten_n+1.jpg",
-          marks: []
-        }
-      ],
-
-      "N0": [
-        {
-          src: "images/vorgarten_n0.jpg",
-          marks: []
-        }
-      ],
-
-      "N-1": [
-        {
-          src: "images/vorgarten_n-1.jpg",
-          marks: []
-        }
-      ],
-
-      "N-2": [
-        {
-          src: "images/vorgarten_n-2.jpg",
-          marks: []
-        }
-      ]
-
+  <style>
+    :root{
+      --bg:#071a2e;
+      --panel:#0b2340;
+      --btn:#0c2b4f;
+      --btn2:#0a2442;
+      --text:#e9f1ff;
+      --muted:#a8b7d6;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
     }
-  }
-};
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 30% 0%, #0b2a4f 0%, var(--bg) 55%);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .wrap{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 14px 20px;
+    }
+
+    .topPanel{
+      background: rgba(5,18,36,.45);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Mobile-first grid */
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr 86px;
+      grid-template-areas:
+        "station level page"
+        "admin   clear clear"
+        "png     zip   zip";
+      gap: 12px;
+      align-items:end;
+    }
+
+    .field{ display:flex; flex-direction:column; gap:8px; }
+    .label{ font-size:14px; color:var(--muted); letter-spacing:.2px; }
+
+    select, button{
+      width:100%;
+      border: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      color:var(--text);
+      border-radius: var(--radius);
+      padding: 14px 14px;
+      font-size: 18px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+      outline:none;
+    }
+
+    select{
+      appearance:none;
+      -webkit-appearance:none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,.9) 50%),
+        linear-gradient(135deg, rgba(255,255,255,.9) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) 55%,
+        calc(100% - 10px) 55%;
+      background-size: 8px 8px, 8px 8px;
+      background-repeat:no-repeat;
+      padding-right: 36px;
+    }
+
+    button{
+      cursor:pointer;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+    }
+    button:active{ transform: translateY(1px); }
+    button.secondary{ background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); }
+    button.danger{ background: linear-gradient(180deg, rgba(255,70,70,.25), rgba(255,70,70,.10)); }
+    button.ok{ background: linear-gradient(180deg, rgba(55,200,120,.25), rgba(55,200,120,.10)); }
+
+    /* Grid areas */
+    .station{ grid-area:station; }
+    .level{ grid-area:level; }
+    .page{ grid-area:page; }
+    .admin{ grid-area:admin; }
+    .clear{ grid-area:clear; }
+    .png{ grid-area:png; }
+    .zip{ grid-area:zip; }
+
+    /* Page bubble */
+    .pageBubble{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height: 56px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    /* Viewer */
+    .viewer{
+      margin-top: 14px;
+      background: rgba(5,18,36,.45);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .canvasWrap{
+      position:relative;
+      width:100%;
+      height: min(72vh, 760px);
+      border-radius: 18px;
+      overflow:hidden;
+      background: rgba(0,0,0,.20);
+    }
+
+    canvas{
+      position:absolute;
+      left:0; top:0;
+      width:100%;
+      height:100%;
+      touch-action: manipulation;
+    }
+
+    .navBtn{
+      position:absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 28px;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .navLeft{ left: 10px; }
+    .navRight{ right: 10px; }
+
+    .navBtn.disabled{
+      opacity: .25;
+      pointer-events:none;
+    }
+
+    /* Desktop refinements */
+    @media (min-width: 900px){
+      .controls{
+        grid-template-columns: 280px 180px 90px 1fr 1fr;
+        grid-template-areas:
+          "station level page admin clear"
+          "png     zip   zip  .     .";
+      }
+      .pageBubble{ height: 58px; }
+      select, button{ font-size: 16px; padding: 12px 14px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topPanel">
+      <div class="controls">
+        <div class="field station">
+          <div class="label">Station</div>
+          <select id="stationSelect"></select>
+        </div>
+
+        <div class="field level">
+          <div class="label">Level</div>
+          <select id="levelSelect"></select>
+        </div>
+
+        <div class="page">
+          <div class="label" style="opacity:0">Seite</div>
+          <div id="pageBubble" class="pageBubble">1/1</div>
+        </div>
+
+        <button id="adminBtn" class="admin secondary">Admin: AUS</button>
+        <button id="clearAllBtn" class="clear danger">ALLES löschen</button>
+
+        <button id="pngBtn" class="png secondary">PNG Export</button>
+        <button id="zipBtn" class="zip secondary">ZIP Export</button>
+      </div>
+    </div>
+
+    <div class="viewer">
+      <div class="canvasWrap" id="canvasWrap">
+        <canvas id="mapCanvas"></canvas>
+        <div id="navLeft" class="navBtn navLeft">◀</div>
+        <div id="navRight" class="navBtn navRight">▶</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reihenfolge ist wichtig -->
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
