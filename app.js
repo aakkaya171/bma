@@ -1,367 +1,505 @@
 // app.js
 (() => {
-  const els = {
-    stationSelect: document.getElementById("stationSelect"),
-    levelSelect: document.getElementById("levelSelect"),
-    pageInfo: document.getElementById("pageInfo"),
-    adminBtn: document.getElementById("adminBtn"),
-    deleteAllBtn: document.getElementById("deleteAllBtn"),
-    exportPngBtn: document.getElementById("exportPngBtn"),
-    exportZipBtn: document.getElementById("exportZipBtn"),
-    scroller: document.getElementById("scroller"),
-    plan: document.getElementById("plan"),
-    planImg: document.getElementById("planImg"),
-    prevBtn: document.getElementById("prevBtn"),
-    nextBtn: document.getElementById("nextBtn"),
-  };
+  const STATIONS = window.STATIONS || {};
+  const LS_KEY = "bma_marks_v1";
 
-  let state = {
-    station: Object.keys(STATIONS)[0],
-    level: null,
-    pageIndex: 0,
-    admin: false,
-  };
+  const stationSelect = document.getElementById("stationSelect");
+  const levelSelect = document.getElementById("levelSelect");
+  const pageBubble = document.getElementById("pageBubble");
+  const adminBtn = document.getElementById("adminBtn");
+  const clearAllBtn = document.getElementById("clearAllBtn");
+  const pngBtn = document.getElementById("pngBtn");
+  const zipBtn = document.getElementById("zipBtn");
 
-  // ---------- Helpers ----------
-  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const canvas = document.getElementById("mapCanvas");
+  const wrap = document.getElementById("canvasWrap");
+  const navLeft = document.getElementById("navLeft");
+  const navRight = document.getElementById("navRight");
+  const ctx = canvas.getContext("2d");
 
-  function getPages() {
-    const stationObj = STATIONS[state.station];
-    if (!stationObj) return [];
-    const lvl = stationObj.levels[state.level];
-    return Array.isArray(lvl) ? lvl : [];
-  }
+  // ---------- State ----------
+  let adminMode = false;
+  let currentStation = null;
+  let currentLevel = null;
+  let currentIndex = 0;
 
-  function saveLocal() {
-    // speichert Marker lokal pro Station/Level/Seite
-    // (damit nach Reload nicht weg)
+  // Persisted store: marks are per image src
+  // store = { [src]: [ {x:0..1, y:0..1} ] }
+  let store = loadStore();
+
+  // Image cache
+  const img = new Image();
+  img.decoding = "async";
+
+  function loadStore() {
     try {
-      const key = "bma_marks_v1";
-      const payload = JSON.stringify(STATIONS);
-      localStorage.setItem(key, payload);
-    } catch {}
-  }
-
-  function loadLocal() {
-    try {
-      const key = "bma_marks_v1";
-      const raw = localStorage.getItem(key);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      // nur wenn Struktur passt
-      if (parsed && typeof parsed === "object") {
-        // überschreiben
-        for (const st of Object.keys(parsed)) {
-          STATIONS[st] = parsed[st];
-        }
-      }
-    } catch {}
-  }
-
-  function setNavDisabled() {
-    const pages = getPages();
-    const max = pages.length - 1;
-
-    const prevDisabled = state.pageIndex <= 0;
-    const nextDisabled = state.pageIndex >= max;
-
-    els.prevBtn.classList.toggle("disabled", prevDisabled);
-    els.nextBtn.classList.toggle("disabled", nextDisabled);
-    els.prevBtn.disabled = prevDisabled;
-    els.nextBtn.disabled = nextDisabled;
-  }
-
-  function updatePageInfo() {
-    const pages = getPages();
-    els.pageInfo.textContent = `Seite: ${pages.length ? (state.pageIndex + 1) : 0}/${pages.length}`;
-  }
-
-  function clearMarksDom() {
-    els.plan.querySelectorAll(".mark").forEach(n => n.remove());
-  }
-
-  function renderMarks() {
-    clearMarksDom();
-    const pages = getPages();
-    const page = pages[state.pageIndex];
-    if (!page) return;
-
-    for (const m of page.marks) {
-      const div = document.createElement("div");
-      div.className = "mark";
-      div.textContent = "✓";
-      div.style.left = `${m.x}%`;
-      div.style.top = `${m.y}%`;
-      els.plan.appendChild(div);
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
     }
   }
 
-  function loadImage() {
-    const pages = getPages();
-    const page = pages[state.pageIndex];
-    if (!page) {
-      els.planImg.removeAttribute("src");
-      clearMarksDom();
-      updatePageInfo();
-      setNavDisabled();
-      return;
-    }
-
-    els.planImg.onload = () => {
-      renderMarks();
-      updatePageInfo();
-      setNavDisabled();
-    };
-
-    els.planImg.onerror = () => {
-      // Wenn Bildpfad falsch ist, siehst du es sofort
-      clearMarksDom();
-      els.pageInfo.textContent = "Bild konnte nicht geladen werden (Pfad prüfen!)";
-      setNavDisabled();
-    };
-
-    els.planImg.src = page.src;
+  function saveStore() {
+    localStorage.setItem(LS_KEY, JSON.stringify(store));
   }
 
-  function setAdmin(on) {
-    state.admin = on;
-    els.adminBtn.textContent = `Admin: ${on ? "EIN" : "AUS"}`;
+  function getPages(stationName, levelKey) {
+    const st = STATIONS[stationName];
+    if (!st) return [];
+    const arr = st.levels?.[levelKey];
+    return Array.isArray(arr) ? arr : [];
   }
 
-  // Klick im Bild: nur wenn Admin EIN → Marker togglen
-  function onPlanClick(ev) {
-    if (!state.admin) return;
-
-    const pages = getPages();
-    const page = pages[state.pageIndex];
-    if (!page) return;
-
-    const rect = els.planImg.getBoundingClientRect();
-    // Klick relativ zum Bild
-    const xPx = ev.clientX - rect.left;
-    const yPx = ev.clientY - rect.top;
-
-    if (xPx < 0 || yPx < 0 || xPx > rect.width || yPx > rect.height) return;
-
-    const x = (xPx / rect.width) * 100;
-    const y = (yPx / rect.height) * 100;
-
-    // Toggle: wenn nahe an bestehendem Marker → entfernen, sonst hinzufügen
-    const threshold = 2.2; // Prozent
-    const idx = page.marks.findIndex(m => Math.hypot(m.x - x, m.y - y) < threshold);
-
-    if (idx >= 0) {
-      page.marks.splice(idx, 1);
-    } else {
-      page.marks.push({ x, y });
-    }
-
-    saveLocal();
-    renderMarks();
+  function currentPage() {
+    const pages = getPages(currentStation, currentLevel);
+    return pages[currentIndex] || null;
   }
 
-  // ---------- Exporte ----------
-  async function exportCurrentPng() {
-    const pages = getPages();
-    const page = pages[state.pageIndex];
-    if (!page) return;
-
-    // Canvas render
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = page.src;
-
-    await img.decode().catch(() => null);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-
-    // Draw marks (✓) groß, wie am Plan (dunkel + weißer Rand)
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const fontSize = Math.round(canvas.width * 0.06); // skaliert automatisch
-    ctx.font = `900 ${fontSize}px Arial`;
-
-    for (const m of page.marks) {
-      const px = (m.x / 100) * canvas.width;
-      const py = (m.y / 100) * canvas.height;
-
-      // weißer Rand (Stroke)
-      ctx.lineWidth = Math.max(6, Math.round(fontSize * 0.12));
-      ctx.strokeStyle = "#ffffff";
-      ctx.strokeText("✓", px, py);
-
-      // dunkle Füllung
-      ctx.fillStyle = "#111111";
-      ctx.fillText("✓", px, py);
-    }
-
-    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${state.station}_${state.level}_Seite${state.pageIndex + 1}.png`.replaceAll(" ", "_");
-    a.click();
-    URL.revokeObjectURL(a.href);
+  function resolveUrl(rel) {
+    // robust, egal ob GitHub Pages root oder subfolder
+    return new URL(rel, window.location.href).toString();
   }
 
-  async function exportStationZip() {
-    if (typeof JSZip === "undefined") {
-      alert("JSZip konnte nicht geladen werden. Bitte Internet/Pages prüfen.");
-      return;
-    }
-
-    const zip = new JSZip();
-    const stationObj = STATIONS[state.station];
-    if (!stationObj) return;
-
-    for (const [lvl, pages] of Object.entries(stationObj.levels)) {
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const fileName = `${state.station}/${lvl}/Seite_${i + 1}.png`.replaceAll(" ", "_");
-
-        // render jede Seite als PNG in zip
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = page.src;
-        await img.decode().catch(() => null);
-
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const fontSize = Math.round(canvas.width * 0.06);
-        ctx.font = `900 ${fontSize}px Arial`;
-
-        for (const m of page.marks) {
-          const px = (m.x / 100) * canvas.width;
-          const py = (m.y / 100) * canvas.height;
-
-          ctx.lineWidth = Math.max(6, Math.round(fontSize * 0.12));
-          ctx.strokeStyle = "#ffffff";
-          ctx.strokeText("✓", px, py);
-
-          ctx.fillStyle = "#111111";
-          ctx.fillText("✓", px, py);
-        }
-
-        const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-        const arrBuf = await blob.arrayBuffer();
-        zip.file(fileName, arrBuf);
-      }
-    }
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(zipBlob);
-    a.download = `${state.station}_EXPORT.zip`.replaceAll(" ", "_");
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  // ---------- Delete ----------
-  function deleteAllWithPassword() {
-    const pw = prompt("Passwort zum Löschen eingeben:");
-    if (pw !== "1705") {
-      alert("Falsches Passwort.");
-      return;
-    }
-
-    const stationObj = STATIONS[state.station];
-    if (!stationObj) return;
-
-    for (const lvl of Object.keys(stationObj.levels)) {
-      for (const page of stationObj.levels[lvl]) {
-        page.marks = [];
-      }
-    }
-
-    saveLocal();
-    renderMarks();
-    alert("Alles gelöscht.");
-  }
-
-  // ---------- UI build ----------
-  function fillStations() {
-    els.stationSelect.innerHTML = "";
-    for (const st of Object.keys(STATIONS)) {
+  // ---------- UI Build ----------
+  function buildStationOptions() {
+    stationSelect.innerHTML = "";
+    const names = Object.keys(STATIONS);
+    if (names.length === 0) {
       const opt = document.createElement("option");
-      opt.value = st;
-      opt.textContent = st;
-      els.stationSelect.appendChild(opt);
+      opt.value = "";
+      opt.textContent = "Keine Stationen";
+      stationSelect.appendChild(opt);
+      return;
     }
-    els.stationSelect.value = state.station;
-  }
-
-  function fillLevels() {
-    const stationObj = STATIONS[state.station];
-    els.levelSelect.innerHTML = "";
-    const levels = stationObj ? Object.keys(stationObj.levels) : [];
-    // wenn noch kein Level gesetzt, nimm das erste
-    if (!state.level || !levels.includes(state.level)) state.level = levels[0] || null;
-
-    for (const lvl of levels) {
+    for (const name of names) {
       const opt = document.createElement("option");
-      opt.value = lvl;
-      opt.textContent = lvl;
-      els.levelSelect.appendChild(opt);
+      opt.value = name;
+      opt.textContent = name;
+      stationSelect.appendChild(opt);
     }
-    if (state.level) els.levelSelect.value = state.level;
   }
 
-  function goToPage(idx) {
-    const pages = getPages();
+  function buildLevelOptions(stationName) {
+    levelSelect.innerHTML = "";
+    const levels = STATIONS[stationName]?.levels ? Object.keys(STATIONS[stationName].levels) : [];
+    if (levels.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Keine Level";
+      levelSelect.appendChild(opt);
+      return;
+    }
+    for (const lv of levels) {
+      const opt = document.createElement("option");
+      opt.value = lv;
+      opt.textContent = lv;
+      levelSelect.appendChild(opt);
+    }
+  }
+
+  function setAdminUI() {
+    adminBtn.textContent = adminMode ? "Admin: EIN" : "Admin: AUS";
+    adminBtn.classList.toggle("ok", adminMode);
+    adminBtn.classList.toggle("secondary", !adminMode);
+  }
+
+  function updateNavUI() {
+    const pages = getPages(currentStation, currentLevel);
+    const total = pages.length || 1;
+    const idx = Math.min(currentIndex, total - 1);
+    pageBubble.textContent = `${idx + 1}/${total}`;
+
+    navLeft.classList.toggle("disabled", idx <= 0);
+    navRight.classList.toggle("disabled", idx >= total - 1);
+  }
+
+  // ---------- Canvas ----------
+  function fitCanvas() {
+    const r = wrap.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(r.width * dpr);
+    canvas.height = Math.floor(r.height * dpr);
+    canvas.style.width = `${r.width}px`;
+    canvas.style.height = `${r.height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function draw() {
+    const page = currentPage();
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    if (!page || !page.src) {
+      // Empty state
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,.65)";
+      ctx.font = "18px system-ui";
+      ctx.fillText("Kein Bild gefunden.", 16, 32);
+      ctx.restore();
+      return;
+    }
+
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+
+    // Draw image cover (contain)
+    const iw = img.naturalWidth || 1;
+    const ih = img.naturalHeight || 1;
+    const scale = Math.min(cw / iw, ch / ih);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const dx = (cw - dw) / 2;
+    const dy = (ch - dh) / 2;
+
+    ctx.drawImage(img, dx, dy, dw, dh);
+
+    // Marks
+    const marks = store[page.src] || [];
+    for (const m of marks) {
+      const px = dx + m.x * dw;
+      const py = dy + m.y * dh;
+      drawBigCheck(px, py);
+    }
+  }
+
+  function drawBigCheck(x, y) {
+    // große, gut sichtbare ✓ wie bei dir am Foto: weiß mit schwarzer Outline
+    const size = 46; // in px (screen)
+    ctx.save();
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    // Outline
+    ctx.strokeStyle = "rgba(0,0,0,.85)";
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.50, y + size * 0.05);
+    ctx.lineTo(x - size * 0.15, y + size * 0.38);
+    ctx.lineTo(x + size * 0.55, y - size * 0.45);
+    ctx.stroke();
+
+    // White stroke
+    ctx.strokeStyle = "rgba(255,255,255,.95)";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.50, y + size * 0.05);
+    ctx.lineTo(x - size * 0.15, y + size * 0.38);
+    ctx.lineTo(x + size * 0.55, y - size * 0.45);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function loadCurrentImage() {
+    const page = currentPage();
+    if (!page || !page.src) {
+      draw();
+      return;
+    }
+    img.onload = () => draw();
+    img.onerror = () => draw();
+    img.src = resolveUrl(page.src);
+  }
+
+  function setStation(name) {
+    currentStation = name;
+    buildLevelOptions(name);
+    currentLevel = levelSelect.value || Object.keys(STATIONS[name].levels)[0];
+    levelSelect.value = currentLevel;
+    currentIndex = 0;
+    updateNavUI();
+    loadCurrentImage();
+  }
+
+  function setLevel(levelKey) {
+    currentLevel = levelKey;
+    currentIndex = 0;
+    updateNavUI();
+    loadCurrentImage();
+  }
+
+  function setPage(idx) {
+    const pages = getPages(currentStation, currentLevel);
     if (!pages.length) return;
-    state.pageIndex = clamp(idx, 0, pages.length - 1);
-    loadImage();
+    currentIndex = Math.max(0, Math.min(idx, pages.length - 1));
+    updateNavUI();
+    loadCurrentImage();
+  }
+
+  // Convert click position to normalized image coords (0..1 inside drawn image)
+  function getImageCoordsFromEvent(ev) {
+    const page = currentPage();
+    if (!page) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const cx = (ev.clientX - rect.left);
+    const cy = (ev.clientY - rect.top);
+
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+
+    const iw = img.naturalWidth || 1;
+    const ih = img.naturalHeight || 1;
+    const scale = Math.min(cw / iw, ch / ih);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const dx = (cw - dw) / 2;
+    const dy = (ch - dh) / 2;
+
+    const inside = (cx >= dx && cx <= dx + dw && cy >= dy && cy <= dy + dh);
+    if (!inside) return null;
+
+    return {
+      x: (cx - dx) / dw,
+      y: (cy - dy) / dh,
+      dx, dy, dw, dh
+    };
+  }
+
+  function findNearestMarkIndex(marks, x, y) {
+    // remove if user taps near existing check (radius)
+    const radius = 0.06; // normalized
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < marks.length; i++) {
+      const dx = marks[i].x - x;
+      const dy = marks[i].y - y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return bestD <= radius ? best : -1;
+  }
+
+  function toggleMarkAt(ev) {
+    if (!adminMode) return; // Admin AUS -> gar nichts
+
+    const page = currentPage();
+    if (!page) return;
+
+    const pos = getImageCoordsFromEvent(ev);
+    if (!pos) return;
+
+    const marks = store[page.src] || [];
+    const i = findNearestMarkIndex(marks, pos.x, pos.y);
+
+    if (i >= 0) {
+      marks.splice(i, 1);
+    } else {
+      marks.push({ x: pos.x, y: pos.y });
+    }
+
+    store[page.src] = marks;
+    saveStore();
+    draw();
+  }
+
+  // ---------- Export ----------
+  async function exportPNGCurrent() {
+    const page = currentPage();
+    if (!page) return alert("Kein Bild.");
+
+    // Render at original size for sharp export
+    const off = document.createElement("canvas");
+    off.width = img.naturalWidth || 1200;
+    off.height = img.naturalHeight || 800;
+    const octx = off.getContext("2d");
+
+    // draw image
+    const exportImg = new Image();
+    exportImg.crossOrigin = "anonymous";
+    exportImg.src = resolveUrl(page.src);
+    await exportImg.decode().catch(()=>{});
+
+    octx.drawImage(exportImg, 0, 0, off.width, off.height);
+
+    // draw marks in original pixel coords
+    const marks = store[page.src] || [];
+    for (const m of marks) {
+      const x = m.x * off.width;
+      const y = m.y * off.height;
+
+      // draw same check, scaled a bit to original image
+      const size = Math.max(40, Math.min(90, off.width * 0.05));
+      octx.save();
+      octx.lineJoin = "round";
+      octx.lineCap = "round";
+
+      octx.strokeStyle = "rgba(0,0,0,.85)";
+      octx.lineWidth = size * 0.26;
+      octx.beginPath();
+      octx.moveTo(x - size * 0.50, y + size * 0.05);
+      octx.lineTo(x - size * 0.15, y + size * 0.38);
+      octx.lineTo(x + size * 0.55, y - size * 0.45);
+      octx.stroke();
+
+      octx.strokeStyle = "rgba(255,255,255,.95)";
+      octx.lineWidth = size * 0.15;
+      octx.beginPath();
+      octx.moveTo(x - size * 0.50, y + size * 0.05);
+      octx.lineTo(x - size * 0.15, y + size * 0.38);
+      octx.lineTo(x + size * 0.55, y - size * 0.45);
+      octx.stroke();
+
+      octx.restore();
+    }
+
+    off.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${safeName(currentStation)}_${safeName(currentLevel)}_${currentIndex+1}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }, "image/png");
+  }
+
+  function safeName(s){ return String(s||"").replace(/[^\w\-+]+/g,"_"); }
+
+  async function ensureJSZip() {
+    if (window.JSZip) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function exportZIPStation() {
+    await ensureJSZip();
+
+    const zip = new window.JSZip();
+    const station = STATIONS[currentStation];
+    if (!station) return alert("Keine Station.");
+
+    for (const [levelKey, pages] of Object.entries(station.levels || {})) {
+      const folder = zip.folder(levelKey);
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        // load image blob
+        const url = resolveUrl(p.src);
+        const res = await fetch(url);
+        const blob = await res.blob();
+
+        // create image with marks as PNG
+        const baseImg = await blobToImage(blob);
+
+        const off = document.createElement("canvas");
+        off.width = baseImg.naturalWidth || 1200;
+        off.height = baseImg.naturalHeight || 800;
+        const octx = off.getContext("2d");
+        octx.drawImage(baseImg, 0, 0, off.width, off.height);
+
+        const marks = store[p.src] || [];
+        for (const m of marks) {
+          const x = m.x * off.width;
+          const y = m.y * off.height;
+          const size = Math.max(40, Math.min(90, off.width * 0.05));
+
+          octx.save();
+          octx.lineJoin = "round";
+          octx.lineCap = "round";
+          octx.strokeStyle = "rgba(0,0,0,.85)";
+          octx.lineWidth = size * 0.26;
+          octx.beginPath();
+          octx.moveTo(x - size * 0.50, y + size * 0.05);
+          octx.lineTo(x - size * 0.15, y + size * 0.38);
+          octx.lineTo(x + size * 0.55, y - size * 0.45);
+          octx.stroke();
+
+          octx.strokeStyle = "rgba(255,255,255,.95)";
+          octx.lineWidth = size * 0.15;
+          octx.beginPath();
+          octx.moveTo(x - size * 0.50, y + size * 0.05);
+          octx.lineTo(x - size * 0.15, y + size * 0.38);
+          octx.lineTo(x + size * 0.55, y - size * 0.45);
+          octx.stroke();
+          octx.restore();
+        }
+
+        const pngBlob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
+        const arrayBuf = await pngBlob.arrayBuffer();
+        folder.file(`${safeName(currentStation)}_${safeName(levelKey)}_${i+1}.png`, arrayBuf);
+      }
+    }
+
+    const out = await zip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(out);
+    a.download = `${safeName(currentStation)}_EXPORT.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  function blobToImage(blob) {
+    return new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = URL.createObjectURL(blob);
+    });
+  }
+
+  // ---------- Clear ----------
+  function clearAll() {
+    const ok = confirm("Wirklich ALLES löschen? (Alle Häkchen von allen Bildern)");
+    if (!ok) return;
+    store = {};
+    saveStore();
+    draw();
   }
 
   // ---------- Events ----------
-  els.stationSelect.addEventListener("change", () => {
-    state.station = els.stationSelect.value;
-    fillLevels();
-    state.pageIndex = 0;
-    loadImage();
+  stationSelect.addEventListener("change", () => setStation(stationSelect.value));
+  levelSelect.addEventListener("change", () => setLevel(levelSelect.value));
+
+  adminBtn.addEventListener("click", () => {
+    adminMode = !adminMode;
+    setAdminUI();
   });
 
-  els.levelSelect.addEventListener("change", () => {
-    state.level = els.levelSelect.value;
-    state.pageIndex = 0;
-    loadImage();
+  clearAllBtn.addEventListener("click", clearAll);
+
+  navLeft.addEventListener("click", () => setPage(currentIndex - 1));
+  navRight.addEventListener("click", () => setPage(currentIndex + 1));
+
+  pngBtn.addEventListener("click", exportPNGCurrent);
+  zipBtn.addEventListener("click", exportZIPStation);
+
+  // Click / tap on canvas to toggle mark
+  canvas.addEventListener("click", (ev) => toggleMarkAt(ev));
+
+  // Resize
+  window.addEventListener("resize", () => {
+    fitCanvas();
+    draw();
   });
 
-  els.prevBtn.addEventListener("click", () => {
-    if (els.prevBtn.disabled) return;
-    goToPage(state.pageIndex - 1);
-  });
+  // ---------- Init ----------
+  function init() {
+    buildStationOptions();
 
-  els.nextBtn.addEventListener("click", () => {
-    if (els.nextBtn.disabled) return;
-    goToPage(state.pageIndex + 1);
-  });
+    const firstStation = Object.keys(STATIONS)[0] || null;
+    currentStation = firstStation;
+    if (firstStation) stationSelect.value = firstStation;
 
-  els.adminBtn.addEventListener("click", () => setAdmin(!state.admin));
+    buildLevelOptions(firstStation);
+    const firstLevel = Object.keys(STATIONS[firstStation]?.levels || {})[0] || null;
+    currentLevel = firstLevel;
+    if (firstLevel) levelSelect.value = firstLevel;
 
-  els.deleteAllBtn.addEventListener("click", deleteAllWithPassword);
-  els.exportPngBtn.addEventListener("click", exportCurrentPng);
-  els.exportZipBtn.addEventListener("click", exportStationZip);
+    currentIndex = 0;
+    setAdminUI();
 
-  // Klick ins Bild → Marker
-  els.planImg.addEventListener("click", onPlanClick);
+    fitCanvas();
+    updateNavUI();
+    loadCurrentImage();
+  }
 
-  // ---------- Boot ----------
-  loadLocal();
-  fillStations();
-  fillLevels();
-  setAdmin(false);
-  state.pageIndex = 0;
-  loadImage();
+  init();
 })();
