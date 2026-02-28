@@ -1,274 +1,271 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5" />
-  <title>BMA Wartung</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5"/>
+<title>BMA Wartung</title>
 
-  <style>
-    :root{
-      --bg:#0b1a2a;
-      --btn:#1c344d;
-      --btnHover:#2a4a6a;
-      --txt:#ffffff;
-      --muted:rgba(255,255,255,.55);
-      --radius:16px;
-      --gap:10px;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--txt);}
+<style>
+:root{
+  --bg:#0b1a2a;
+  --btn:#1c344d;
+  --btnHover:#2a4a6a;
+  --txt:#ffffff;
+  --muted:rgba(255,255,255,.55);
+  --radius:16px;
+  --gap:10px;
+}
 
-    header{
-      position:sticky; top:0; z-index:10;
-      padding:12px;
-      background:linear-gradient(180deg, rgba(15,36,56,1), rgba(15,36,56,.92));
-      backdrop-filter: blur(6px);
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:var(--bg);
+  color:var(--txt);
+}
 
-    label{color:var(--muted); font-size:14px}
-    select,button{
-      border:0;
-      border-radius:var(--radius);
-      background:var(--btn);
-      color:var(--txt);
-      padding:10px 14px;
-      font-size:14px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.22) inset, 0 6px 18px rgba(0,0,0,.15);
-      white-space:nowrap;
-    }
-    button:hover{background:var(--btnHover); cursor:pointer}
+header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  padding:12px;
+  background:linear-gradient(180deg,#0f2438,#0f2438e6);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
 
-    .pill{
-      padding:10px 14px;
-      border-radius:var(--radius);
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      color:var(--txt);
-      font-weight:700;
-    }
+label{
+  color:var(--muted);
+  font-size:13px;
+  display:block;
+  margin-bottom:4px;
+}
 
-    /* Desktop */
-    .deskRow{
-      display:flex; flex-wrap:wrap; gap:var(--gap); align-items:center;
-      margin-bottom:10px;
-    }
-    .deskRow:last-child{margin-bottom:0}
+select,button{
+  border:0;
+  border-radius:var(--radius);
+  background:var(--btn);
+  color:var(--txt);
+  padding:10px 14px;
+  font-size:14px;
+  box-shadow:inset 0 6px 18px rgba(0,0,0,.22);
+  width:100%;
+}
 
-    /* Mobile */
-    .mobileGrid{ display:none; }
+button:hover{
+  background:var(--btnHover);
+  cursor:pointer;
+}
 
-    @media (max-width: 650px){
-      .deskRow{ display:none; }
-      .mobileGrid{
-        display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap:var(--gap);
-      }
+.pill{
+  padding:10px 14px;
+  border-radius:var(--radius);
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  font-weight:700;
+  text-align:center;
+}
 
-      .g-station{ grid-column:1; }
-      .g-level{ grid-column:2; }
+/* ===== DESKTOP ===== */
+.deskRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--gap);
+  align-items:center;
+  margin-bottom:10px;
+}
+.deskRow select,
+.deskRow button,
+.deskRow .pill{
+  width:auto;
+}
 
-      /* Seite links, rechts frei ist jetzt entfernt */
-      .g-page{ grid-column:1 / span 2; }
+/* ===== MOBILE ===== */
+.mobileGrid{display:none;}
 
-      .g-admin{ grid-column:1; }
-      .g-delete{ grid-column:2; }
+@media(max-width:650px){
 
-      .g-png{ grid-column:1 / span 2; }
-      .g-zip{ grid-column:1 / span 2; }
+  .deskRow{display:none;}
 
-      select,button,.pill{ padding:12px 14px; font-size:15px; }
-    }
+  .mobileGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:var(--gap);
+    align-items:end;
+    grid-template-areas:
+      "station level page"
+      "admin delete delete"
+      "png png png"
+      "zip zip zip";
+  }
 
-    .viewerWrap{ padding:12px; }
+  .g-station{grid-area:station;}
+  .g-level{grid-area:level;}
+  .g-page{grid-area:page;}
+  .g-admin{grid-area:admin;}
+  .g-delete{grid-area:delete;}
+  .g-png{grid-area:png;}
+  .g-zip{grid-area:zip;}
 
-    #scroller{
-      height: calc(100vh - 160px);
-      overflow:auto;
-      border-radius:18px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
-      -webkit-overflow-scrolling:touch;
-    }
-    @media (max-width:650px){
-      #scroller{ height: calc(100vh - 250px); }
-    }
+  select,button,.pill{
+    font-size:15px;
+    padding:12px 14px;
+  }
+}
 
-    #plan{
-      position:relative;
-      width:max-content;
-      user-select:none;
-      touch-action:manipulation;
-    }
-    #planImg{
-      display:block;
-      width:1200px;
-      max-width:none;
-    }
-    @media (max-width:600px){
-      #planImg{ width:980px; }
-    }
+/* ===== Viewer ===== */
+.viewerWrap{padding:12px;}
 
-    .mark{
-      position:absolute;
-      transform:translate(-50%,-50%);
-      pointer-events:none;
-      font-size:64px;
-      font-weight:900;
-      color:#111;
-      -webkit-text-stroke: 5px #fff;
-      line-height:1;
-      text-shadow: 0 2px 10px rgba(0,0,0,.25);
-    }
-    @media (max-width:600px){
-      .mark{ font-size:54px; -webkit-text-stroke:4px #fff; }
-    }
+#scroller{
+  height:calc(100vh - 160px);
+  overflow:auto;
+  border-radius:18px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+}
 
-    .nav{
-      position:fixed; left:0; right:0; bottom:18px;
-      display:flex; justify-content:space-between;
-      padding:0 18px;
-      pointer-events:none;
-      z-index:20;
-    }
-    .nav button{
-      pointer-events:auto;
-      width:64px; height:64px;
-      font-size:24px;
-      display:flex; align-items:center; justify-content:center;
-      background:rgba(0,0,0,.55);
-      border:1px solid rgba(255,255,255,.18);
-    }
-    .nav button.disabled{ opacity:.25; cursor:default; }
-    .nav button.disabled:hover{ background:rgba(0,0,0,.55); }
-  </style>
+@media(max-width:650px){
+  #scroller{height:calc(100vh - 220px);}
+}
+
+#plan{
+  position:relative;
+  width:max-content;
+}
+
+#planImg{
+  display:block;
+  width:1200px;
+  max-width:none;
+}
+
+@media(max-width:600px){
+  #planImg{width:980px;}
+}
+
+.mark{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  font-size:64px;
+  font-weight:900;
+  color:#111;
+  -webkit-text-stroke:5px #fff;
+}
+
+.nav{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:18px;
+  display:flex;
+  justify-content:space-between;
+  padding:0 18px;
+  pointer-events:none;
+}
+
+.nav button{
+  pointer-events:auto;
+  width:64px;
+  height:64px;
+  font-size:24px;
+  background:rgba(0,0,0,.55);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:18px;
+}
+
+.nav button.disabled{
+  opacity:.25;
+  cursor:default;
+}
+</style>
 </head>
 
 <body>
-  <header>
 
-    <!-- Desktop -->
-    <div class="deskRow">
-      <label>Station:</label>
-      <select id="stationSelect"></select>
+<header>
 
-      <label>Level:</label>
-      <select id="levelSelect"></select>
+<!-- DESKTOP -->
+<div class="deskRow">
+<label>Station:</label>
+<select id="stationSelect"></select>
 
-      <span class="pill" id="pageInfo">Seite: 1/1</span>
-    </div>
+<label>Level:</label>
+<select id="levelSelect"></select>
 
-    <div class="deskRow">
-      <button id="adminBtn">Admin: AUS</button>
-      <button id="deleteAllBtn">ALLES löschen</button>
-      <button id="exportPngBtn">PNG Export (dieses Bild)</button>
-      <button id="exportZipBtn">ZIP Export (ganze Station)</button>
-    </div>
+<span class="pill" id="pageInfo">Seite: 1/1</span>
+</div>
 
-    <!-- Mobile -->
-    <div class="mobileGrid">
-      <div class="g-station">
-        <label>Station:</label><br/>
-        <select id="stationSelect_m"></select>
-      </div>
+<div class="deskRow">
+<button id="adminBtn">Admin: AUS</button>
+<button id="deleteAllBtn">ALLES löschen</button>
+<button id="exportPngBtn">PNG Export (dieses Bild)</button>
+<button id="exportZipBtn">ZIP Export (ganze Station)</button>
+</div>
 
-      <div class="g-level">
-        <label>Level:</label><br/>
-        <select id="levelSelect_m"></select>
-      </div>
+<!-- MOBILE -->
+<div class="mobileGrid">
 
-      <div class="g-page">
-        <span class="pill" id="pageInfo_m">Seite: 1/1</span>
-      </div>
+<div class="g-station">
+<label>Station</label>
+<select id="stationSelect_m"></select>
+</div>
 
-      <button class="g-admin" id="adminBtn_m">Admin: AUS</button>
-      <button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
+<div class="g-level">
+<label>Level</label>
+<select id="levelSelect_m"></select>
+</div>
 
-      <button class="g-png" id="exportPngBtn_m">PNG Export (dieses Bild)</button>
-      <button class="g-zip" id="exportZipBtn_m">ZIP Export (ganze Station)</button>
-    </div>
+<div class="g-page">
+<label>&nbsp;</label>
+<span class="pill" id="pageInfo_m">1/1</span>
+</div>
 
-  </header>
+<button class="g-admin" id="adminBtn_m">Admin: AUS</button>
+<button class="g-delete" id="deleteAllBtn_m">ALLES löschen</button>
 
-  <div class="viewerWrap">
-    <div id="scroller">
-      <div id="plan">
-        <img id="planImg" alt="Plan">
-      </div>
-    </div>
-  </div>
+<button class="g-png" id="exportPngBtn_m">PNG Export (dieses Bild)</button>
+<button class="g-zip" id="exportZipBtn_m">ZIP Export (ganze Station)</button>
 
-  <div class="nav">
-    <button id="prevBtn" aria-label="vorherige Seite">◀</button>
-    <button id="nextBtn" aria-label="nächste Seite">▶</button>
-  </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="data.js"></script>
+</header>
 
-  <!-- Mobile Controls spiegeln desktop IDs -->
-  <script>
-    window.addEventListener("DOMContentLoaded", () => {
-      const station = document.getElementById("stationSelect");
-      const level = document.getElementById("levelSelect");
-      const page = document.getElementById("pageInfo");
+<div class="viewerWrap">
+<div id="scroller">
+<div id="plan">
+<img id="planImg">
+</div>
+</div>
+</div>
 
-      const stationM = document.getElementById("stationSelect_m");
-      const levelM = document.getElementById("levelSelect_m");
-      const pageM = document.getElementById("pageInfo_m");
+<div class="nav">
+<button id="prevBtn">◀</button>
+<button id="nextBtn">▶</button>
+</div>
 
-      const admin = document.getElementById("adminBtn");
-      const del = document.getElementById("deleteAllBtn");
-      const png = document.getElementById("exportPngBtn");
-      const zip = document.getElementById("exportZipBtn");
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="data.js"></script>
 
-      const adminM = document.getElementById("adminBtn_m");
-      const delM = document.getElementById("deleteAllBtn_m");
-      const pngM = document.getElementById("exportPngBtn_m");
-      const zipM = document.getElementById("exportZipBtn_m");
+<script>
+window.addEventListener("DOMContentLoaded",()=>{
+const ids=["stationSelect","levelSelect","pageInfo","adminBtn","deleteAllBtn","exportPngBtn","exportZipBtn"];
+ids.forEach(id=>{
+const desktop=document.getElementById(id);
+const mobile=document.getElementById(id+"_m");
+if(!mobile)return;
+if(desktop.tagName==="SELECT"){
+mobile.addEventListener("change",()=>{
+desktop.value=mobile.value;
+desktop.dispatchEvent(new Event("change"));
+});
+}else{
+mobile.addEventListener("click",()=>desktop.click());
+}
+});
+});
+</script>
 
-      const syncSelectOptions = () => {
-        stationM.innerHTML = station.innerHTML;
-        levelM.innerHTML = level.innerHTML;
-        stationM.value = station.value;
-        levelM.value = level.value;
-      };
-      const syncPage = () => { pageM.textContent = page.textContent; };
+<script src="app.js"></script>
 
-      stationM.addEventListener("change", () => {
-        station.value = stationM.value;
-        station.dispatchEvent(new Event("change"));
-      });
-      levelM.addEventListener("change", () => {
-        level.value = levelM.value;
-        level.dispatchEvent(new Event("change"));
-      });
-
-      adminM.addEventListener("click", () => admin.click());
-      delM.addEventListener("click", () => del.click());
-      pngM.addEventListener("click", () => png.click());
-      zipM.addEventListener("click", () => zip.click());
-
-      let lastStation = "", lastLevel = "", lastPage = "";
-      setInterval(() => {
-        if (station.innerHTML && stationM.innerHTML !== station.innerHTML) syncSelectOptions();
-
-        if (station.value !== lastStation || level.value !== lastLevel) {
-          syncSelectOptions();
-          lastStation = station.value; lastLevel = level.value;
-        }
-
-        if (page.textContent !== lastPage) {
-          syncPage();
-          lastPage = page.textContent;
-        }
-
-        if (admin.textContent !== adminM.textContent) adminM.textContent = admin.textContent;
-      }, 200);
-    });
-  </script>
-
-  <script src="app.js"></script>
 </body>
 </html>
