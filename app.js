@@ -1,30 +1,69 @@
 // app.js
 (() => {
-  const STATIONS = window.STATIONS || {};
+  const STATIONS_STORAGE_KEY = "bma_stations_v3";
 
   const stationSelect = document.getElementById("stationSelect");
-  const levelSelect   = document.getElementById("levelSelect");
+  const levelSelect = document.getElementById("levelSelect");
   const pageIndicator = document.getElementById("pageIndicator");
 
-  const adminBtn   = document.getElementById("adminBtn");
-  const clearAllBtn= document.getElementById("clearAllBtn");
-  const pngBtn     = document.getElementById("pngBtn");
-  const zipBtn     = document.getElementById("zipBtn");
+  const adminBtn = document.getElementById("adminBtn");
+  const clearAllBtn = document.getElementById("clearAllBtn");
+  const pngBtn = document.getElementById("pngBtn");
+  const zipBtn = document.getElementById("zipBtn");
 
-  const planWrap   = document.getElementById("planWrap");
-  const planImg    = document.getElementById("planImg");
+  const planWrap = document.getElementById("planWrap");
+  const planImg = document.getElementById("planImg");
   const marksLayer = document.getElementById("marksLayer");
 
-  const prevBtn    = document.getElementById("prevBtn");
-  const nextBtn    = document.getElementById("nextBtn");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  const settingsPanel = document.getElementById("settingsPanel");
+  const newStationInput = document.getElementById("newStationInput");
+  const addStationBtn = document.getElementById("addStationBtn");
+  const newLevelInput = document.getElementById("newLevelInput");
+  const addLevelBtn = document.getElementById("addLevelBtn");
+  const uploadImageInput = document.getElementById("uploadImageInput");
+  const addImageBtn = document.getElementById("addImageBtn");
+
+  let STATIONS = loadStations();
 
   // ---- State
   let adminEnabled = false;
   let currentStation = null;
-  let currentLevel   = null;
+  let currentLevel = null;
   let currentPageIdx = 0;
+  let ignoreNextClick = false;
 
-  // ---- Storage helpers
+  function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function loadStations() {
+    try {
+      const raw = localStorage.getItem(STATIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch {}
+
+    const fallback = (window.STATIONS && typeof window.STATIONS === "object") ? clone(window.STATIONS) : {};
+    try {
+      localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(fallback));
+    } catch {}
+    return fallback;
+  }
+
+  function saveStations() {
+    try {
+      localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(STATIONS));
+    } catch {
+      alert("Speichern fehlgeschlagen. Eventuell ist der Speicher voll.");
+    }
+  }
+
+  // ---- Storage helpers for marks
   const storageKey = () => `bma_marks_v2_${currentStation}__${currentLevel}`;
   const loadSavedMarks = () => {
     try {
@@ -35,15 +74,18 @@
       return null;
     }
   };
-  const saveMarks = (pages) => {
+
+  const saveMarks = pages => {
     try {
       localStorage.setItem(storageKey(), JSON.stringify(pages));
+      saveStations();
     } catch {}
   };
 
   // ---- UI helpers
   function setAdminUI() {
     adminBtn.textContent = adminEnabled ? "Admin: EIN" : "Admin: AUS";
+    settingsPanel.classList.toggle("show", adminEnabled);
   }
 
   function setNavDisabled() {
@@ -52,14 +94,12 @@
 
     prevBtn.classList.toggle("disabled", currentPageIdx <= 0);
     nextBtn.classList.toggle("disabled", currentPageIdx >= max);
-
-    pageIndicator.textContent = `${pages.length ? (currentPageIdx + 1) : 0}/${pages.length || 0}`;
+    pageIndicator.textContent = `${pages.length ? currentPageIdx + 1 : 0}/${pages.length || 0}`;
   }
 
   function populateStations() {
     stationSelect.innerHTML = "";
-    const names = Object.keys(STATIONS);
-    for (const name of names) {
+    for (const name of Object.keys(STATIONS)) {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
@@ -80,8 +120,7 @@
 
   function getPages() {
     if (!currentStation || !currentLevel) return [];
-    const basePages = STATIONS[currentStation]?.levels?.[currentLevel] || [];
-    return basePages;
+    return STATIONS[currentStation]?.levels?.[currentLevel] || [];
   }
 
   function hydrateFromStorageIntoData() {
@@ -103,23 +142,23 @@
       return;
     }
 
+    if (currentPageIdx > pages.length - 1) currentPageIdx = pages.length - 1;
     const page = pages[currentPageIdx];
     planImg.src = page.src;
 
     marksLayer.innerHTML = "";
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const el = document.createElement("img");
       el.className = "mark";
       el.src = makeCheckSVGDataURL();
       el.style.left = `${m.x * 100}%`;
-      el.style.top  = `${m.y * 100}%`;
+      el.style.top = `${m.y * 100}%`;
       marksLayer.appendChild(el);
     }
 
     setNavDisabled();
   }
 
-  // gleiches Häkchen-Design (weiß mit schwarzer Kontur)
   function makeCheckSVGDataURL() {
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
@@ -130,14 +169,17 @@
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
-  function getRelativeClickPos(evt) {
-    const rect = planWrap.getBoundingClientRect();
-    const clientX = (evt.touches && evt.touches[0]) ? evt.touches[0].clientX : evt.clientX;
-    const clientY = (evt.touches && evt.touches[0]) ? evt.touches[0].clientY : evt.clientY;
+  function getRelativePointerPos(evt) {
+    const rect = planImg.getBoundingClientRect();
+    const point = (evt.changedTouches && evt.changedTouches[0]) || (evt.touches && evt.touches[0]) || evt;
 
-    const x = (clientX - rect.left) / rect.width;
-    const y = (clientY - rect.top) / rect.height;
-    return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
+    if (!point || rect.width <= 0 || rect.height <= 0) return null;
+
+    const x = (point.clientX - rect.left) / rect.width;
+    const y = (point.clientY - rect.top) / rect.height;
+
+    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+    return { x, y };
   }
 
   function toggleMarkAt(x, y) {
@@ -145,26 +187,22 @@
     if (!pages.length) return;
 
     const page = pages[currentPageIdx];
+    if (!Array.isArray(page.marks)) page.marks = [];
 
-    // Entfernen wenn nahe genug (damit man tippen kann)
-    const hitRadius = 0.045; // ~4.5% der Breite/Höhe
+    const hitRadius = 0.045;
     const idx = page.marks.findIndex(m => {
       const dx = m.x - x;
       const dy = m.y - y;
-      return Math.sqrt(dx*dx + dy*dy) < hitRadius;
+      return Math.sqrt(dx * dx + dy * dy) < hitRadius;
     });
 
-    if (idx >= 0) {
-      page.marks.splice(idx, 1);
-    } else {
-      page.marks.push({ x, y });
-    }
+    if (idx >= 0) page.marks.splice(idx, 1);
+    else page.marks.push({ x, y });
 
     saveMarks(getPages());
     renderImageAndMarks();
   }
 
-  // ---- Export PNG (aktuelles Bild)
   async function exportPNGCurrent() {
     const pages = getPages();
     if (!pages.length) return;
@@ -178,7 +216,7 @@
     await new Promise((res, rej) => {
       img.onload = () => res();
       img.onerror = () => rej(new Error("Bild konnte nicht geladen werden (CORS/Path)."));
-    }).catch((e) => {
+    }).catch(e => {
       alert(e.message);
       return null;
     });
@@ -192,12 +230,9 @@
 
     ctx.drawImage(img, 0, 0);
 
-    // Zeichne Häkchen als Vektor
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-
-      // Größe relativ
       const size = Math.max(60, Math.round(canvas.width * 0.05));
       ctx.save();
       ctx.translate(px, py);
@@ -205,19 +240,19 @@
       ctx.lineJoin = "round";
 
       ctx.beginPath();
-      ctx.moveTo(-0.30*size, 0.05*size);
-      ctx.lineTo(-0.05*size, 0.28*size);
-      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
+      ctx.lineTo(-0.05 * size, 0.28 * size);
+      ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "rgba(0,0,0,0.95)";
-      ctx.lineWidth = 0.16*size;
+      ctx.lineWidth = 0.16 * size;
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(-0.30*size, 0.05*size);
-      ctx.lineTo(-0.05*size, 0.28*size);
-      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
+      ctx.lineTo(-0.05 * size, 0.28 * size);
+      ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 0.10*size;
+      ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
       ctx.restore();
@@ -228,14 +263,13 @@
 
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${currentStation}_${currentLevel}_Seite-${currentPageIdx+1}.png`.replaceAll(" ", "_");
+    a.download = `${currentStation}_${currentLevel}_Seite-${currentPageIdx + 1}.png`.replaceAll(" ", "_");
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(a.href);
   }
 
-  // ---- ZIP Export (ganze Station) – nutzt JSZip CDN
   async function exportZIPStation() {
     if (typeof JSZip === "undefined") {
       alert("JSZip ist nicht geladen (Internet?).");
@@ -248,7 +282,6 @@
 
     for (const levelKey of Object.keys(station.levels || {})) {
       const pages = station.levels[levelKey] || [];
-      // Temporär currentLevel wechseln, damit Storage-Key stimmt:
       const prevLevel = currentLevel;
       currentLevel = levelKey;
       hydrateFromStorageIntoData();
@@ -257,7 +290,7 @@
         const page = pages[i];
         const pngBlob = await renderPageToPNGBlob(page).catch(() => null);
         if (pngBlob) {
-          zip.file(`${currentStation}/${levelKey}/Seite-${i+1}.png`.replaceAll(" ", "_"), pngBlob);
+          zip.file(`${currentStation}/${levelKey}/Seite-${i + 1}.png`.replaceAll(" ", "_"), pngBlob);
         }
       }
 
@@ -273,7 +306,6 @@
     a.remove();
     URL.revokeObjectURL(a.href);
 
-    // restore view
     renderImageAndMarks();
   }
 
@@ -293,7 +325,7 @@
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, 0, 0);
 
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
       const size = Math.max(60, Math.round(canvas.width * 0.05));
@@ -304,19 +336,19 @@
       ctx.lineJoin = "round";
 
       ctx.beginPath();
-      ctx.moveTo(-0.30*size, 0.05*size);
-      ctx.lineTo(-0.05*size, 0.28*size);
-      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
+      ctx.lineTo(-0.05 * size, 0.28 * size);
+      ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "rgba(0,0,0,0.95)";
-      ctx.lineWidth = 0.16*size;
+      ctx.lineWidth = 0.16 * size;
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(-0.30*size, 0.05*size);
-      ctx.lineTo(-0.05*size, 0.28*size);
-      ctx.lineTo(0.38*size, -0.25*size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
+      ctx.lineTo(-0.05 * size, 0.28 * size);
+      ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 0.10*size;
+      ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
       ctx.restore();
@@ -325,7 +357,6 @@
     return await new Promise(r => canvas.toBlob(r, "image/png"));
   }
 
-  // ---- Clear (ALLES) – mit Passwort 1705
   function clearAllWithPassword() {
     const pw = prompt("Passwort für ALLES löschen:");
     if (pw !== "1705") {
@@ -333,7 +364,6 @@
       return;
     }
 
-    // lösche ALLE gespeicherten marks in localStorage (für dieses Projekt)
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -341,17 +371,92 @@
     }
     keys.forEach(k => localStorage.removeItem(k));
 
-    // auch in RAM zurücksetzen
     for (const s of Object.keys(STATIONS)) {
       for (const l of Object.keys(STATIONS[s].levels || {})) {
         for (const p of STATIONS[s].levels[l] || []) p.marks = [];
       }
     }
 
+    saveStations();
     renderImageAndMarks();
   }
 
-  // ---- Events
+  async function fileToDataURL(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addStation() {
+    const name = newStationInput.value.trim();
+    if (!name) return;
+    if (STATIONS[name]) {
+      alert("Station existiert bereits.");
+      return;
+    }
+
+    STATIONS[name] = { levels: { N0: [] } };
+    saveStations();
+
+    populateStations();
+    currentStation = name;
+    stationSelect.value = name;
+    populateLevels(name);
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    renderImageAndMarks();
+
+    newStationInput.value = "";
+  }
+
+  function addLevel() {
+    if (!currentStation) return;
+    const lvl = newLevelInput.value.trim();
+    if (!lvl) return;
+
+    const levels = STATIONS[currentStation].levels || (STATIONS[currentStation].levels = {});
+    if (!levels[lvl]) levels[lvl] = [];
+    saveStations();
+
+    populateLevels(currentStation);
+    currentLevel = lvl;
+    levelSelect.value = lvl;
+    currentPageIdx = 0;
+    renderImageAndMarks();
+
+    newLevelInput.value = "";
+  }
+
+  async function addImageToCurrentLevel() {
+    if (!currentStation || !currentLevel) {
+      alert("Bitte zuerst Station und Level wählen.");
+      return;
+    }
+
+    const file = uploadImageInput.files?.[0];
+    if (!file) {
+      alert("Bitte ein Bild auswählen.");
+      return;
+    }
+
+    const dataUrl = await fileToDataURL(file).catch(() => null);
+    if (!dataUrl) {
+      alert("Bild konnte nicht geladen werden.");
+      return;
+    }
+
+    const pages = STATIONS[currentStation].levels[currentLevel] || (STATIONS[currentStation].levels[currentLevel] = []);
+    pages.push({ src: dataUrl, marks: [] });
+    saveStations();
+
+    currentPageIdx = pages.length - 1;
+    renderImageAndMarks();
+    uploadImageInput.value = "";
+  }
+
   stationSelect.addEventListener("change", () => {
     currentStation = stationSelect.value;
     populateLevels(currentStation);
@@ -373,6 +478,10 @@
     setAdminUI();
   });
 
+  addStationBtn.addEventListener("click", addStation);
+  addLevelBtn.addEventListener("click", addLevel);
+  addImageBtn.addEventListener("click", addImageToCurrentLevel);
+
   clearAllBtn.addEventListener("click", clearAllWithPassword);
   pngBtn.addEventListener("click", exportPNGCurrent);
   zipBtn.addEventListener("click", exportZIPStation);
@@ -391,23 +500,36 @@
     }
   });
 
-  // Klick auf Plan: nur wenn Admin EIN
-  planWrap.addEventListener("click", (evt) => {
+  planWrap.addEventListener("click", evt => {
     if (!adminEnabled) return;
-    const { x, y } = getRelativeClickPos(evt);
-    toggleMarkAt(x, y);
+    if (ignoreNextClick) {
+      ignoreNextClick = false;
+      return;
+    }
+
+    const pos = getRelativePointerPos(evt);
+    if (!pos) return;
+    toggleMarkAt(pos.x, pos.y);
   });
 
-  // Touch: verhindert “Ghost clicks” beim Scrollen
-  planWrap.addEventListener("touchend", (evt) => {
-    if (!adminEnabled) return;
-    // wenn user wirklich tippt (nicht scrollt), reicht click-event meist – aber iOS ist manchmal komisch
-    // wir machen’s bewusst hier:
-    const { x, y } = getRelativeClickPos(evt);
-    toggleMarkAt(x, y);
-  }, { passive: true });
+  planWrap.addEventListener(
+    "touchend",
+    evt => {
+      if (!adminEnabled) return;
 
-  // ---- Init
+      const pos = getRelativePointerPos(evt);
+      if (!pos) return;
+
+      ignoreNextClick = true;
+      setTimeout(() => {
+        ignoreNextClick = false;
+      }, 300);
+
+      toggleMarkAt(pos.x, pos.y);
+    },
+    { passive: true }
+  );
+
   function init() {
     populateStations();
 
@@ -416,6 +538,8 @@
       stationSelect.innerHTML = `<option value="">Keine Stationen</option>`;
       levelSelect.innerHTML = `<option value="">Keine Level</option>`;
       pageIndicator.textContent = "0/0";
+      adminEnabled = false;
+      setAdminUI();
       return;
     }
 
