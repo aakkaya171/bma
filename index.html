@@ -10,8 +10,8 @@
       --bg-top:#001a34;
       --bg-mid:#032142;
       --bg-bottom:#093152;
-      --pill:#1b4168;
-      --pill-2:#1a3d62;
+      --pill:#1f446c;
+      --pill-2:#1c3f65;
       --stroke: rgba(255,255,255,0.18);
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.70);
@@ -27,7 +27,7 @@
     }
 
     body{
-      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
+      background: radial-gradient(1100px 640px at 50% 20%, #0b3156 0%, #032646 42%, #001b37 100%);
       padding: env(safe-area-inset-top) 14px env(safe-area-inset-right) 14px env(safe-area-inset-bottom) 14px env(safe-area-inset-left) 14px;
     }
 
@@ -65,7 +65,7 @@
       width:100%;
       appearance:none;
       border:0;
-      border-radius: 24px;
+      border-radius: 26px;
       background: var(--pill);
       color: var(--text);
       padding: 14px 44px 14px 16px;
@@ -90,12 +90,12 @@
     .page-pill{
       border: 1px solid var(--stroke);
       background: rgba(255,255,255,0.08);
-      border-radius: 24px;
+      border-radius: 40px;
       padding: 12px 16px;
       font-size: 20px;
       min-width: 120px;
       text-align:center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.12);
     }
     .page-pill::before{ content: "Seite: "; }
 
@@ -106,12 +106,12 @@
       gap:12px;
     }
     .row2{ grid-template-columns: 1fr 1fr; }
-    .row3{ grid-template-columns: 1fr; max-width: 62%; }
+    .row3{ grid-template-columns: 1fr; max-width: 86%; }
 
     .btn{
       width:100%;
       border:0;
-      border-radius: 24px;
+      border-radius: 40px;
       background: linear-gradient(180deg, var(--pill), var(--pill-2));
       color: var(--text);
       padding: 14px;
@@ -124,9 +124,9 @@
     .settings{
       margin-top: 12px;
       border: 1px solid var(--stroke);
-      border-radius: 16px;
+      border-radius: 24px;
       padding: 10px;
-      background: rgba(0,0,0,0.22);
+      background: rgba(9,27,48,0.55);
       display:none;
     }
     .settings.show{ display:block; }
@@ -145,7 +145,7 @@
     .file-input{
       width:100%;
       border: 1px solid var(--stroke);
-      border-radius: 14px;
+      border-radius: 20px;
       padding: 10px 12px;
       background: rgba(255,255,255,0.08);
       color: var(--text);
@@ -153,7 +153,7 @@
     .input::placeholder{ color: rgba(255,255,255,0.55); }
     .btn-small{
       border:0;
-      border-radius: 14px;
+      border-radius: 20px;
       background: linear-gradient(180deg, var(--pill), var(--pill-2));
       color: var(--text);
       padding: 10px 12px;
@@ -170,14 +170,14 @@
     .viewer{
       margin-top: 8px;
       padding: 14px 0 0;
-      border-top: 1px solid rgba(255,255,255,0.20);
+      border-top: 1px solid rgba(255,255,255,0.25);
     }
     .viewer-title{ display:none; }
 
     .plan-wrap{
       position:relative;
-      border-radius: 28px;
-      border: 1px solid rgba(255,255,255,0.30);
+      border-radius: 36px;
+      border: 1px solid rgba(255,255,255,0.35);
       background: rgba(0,0,0,0.14);
       overflow:hidden;
       min-height: 360px;
@@ -210,11 +210,11 @@
     .nav{
       position:absolute;
       bottom:12px;
-      width:64px;
-      height:64px;
+      width:62px;
+      height:62px;
       border-radius: 18px;
       border:0;
-      background: rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.20);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -223,7 +223,7 @@
       backdrop-filter: blur(3px);
       -webkit-backdrop-filter: blur(3px);
     }
-    .nav.left{ right:86px; }
+    .nav.left{ right:84px; }
     .nav.right{ right:12px; }
     .nav.disabled{ opacity:0.25; pointer-events:none; }
 
@@ -276,8 +276,8 @@
       </div>
 
       <div class="row3">
-        <button id="pngBtn" class="btn">PNG Export</button>
-        <button id="zipBtn" class="btn">ZIP Export</button>
+        <button id="pngBtn" class="btn">PNG Export (dieses Bild)</button>
+        <button id="zipBtn" class="btn">ZIP Export (ganze Station)</button>
       </div>
 
       <div id="settingsPanel" class="settings">
