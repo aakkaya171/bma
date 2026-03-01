@@ -2,6 +2,8 @@
 (() => {
   const STATIONS_STORAGE_KEY = "bma_stations_v3";
   const STATIONS_STORAGE_BACKUP_KEY = "bma_stations_v3_backup";
+  const ASSETS_DB_NAME = "bma_assets_v1";
+  const ASSETS_STORE = "images";
 
   const stationSelect = document.getElementById("stationSelect");
   const levelSelect = document.getElementById("levelSelect");
@@ -59,6 +61,7 @@
   let sampleCanvas = null;
   let sampleCtx = null;
   let sampleSrc = "";
+  const assetSrcCache = new Map();
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -108,6 +111,64 @@
     } catch {}
 
     return true;
+  }
+
+
+  function openAssetsDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(ASSETS_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(ASSETS_STORE)) {
+          db.createObjectStore(ASSETS_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IndexedDB öffnen fehlgeschlagen."));
+    });
+  }
+
+  async function putImageAsset(dataUrl) {
+    const db = await openAssetsDb();
+    try {
+      const assetId = `asset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(ASSETS_STORE, "readwrite");
+        tx.objectStore(ASSETS_STORE).put(dataUrl, assetId);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error("Asset speichern fehlgeschlagen."));
+      });
+      assetSrcCache.set(assetId, dataUrl);
+      return assetId;
+    } finally {
+      db.close();
+    }
+  }
+
+  async function getImageAsset(assetId) {
+    if (!assetId) return null;
+    if (assetSrcCache.has(assetId)) return assetSrcCache.get(assetId);
+
+    const db = await openAssetsDb();
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const tx = db.transaction(ASSETS_STORE, "readonly");
+        const req = tx.objectStore(ASSETS_STORE).get(assetId);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error || new Error("Asset laden fehlgeschlagen."));
+      });
+      if (dataUrl) assetSrcCache.set(assetId, dataUrl);
+      return dataUrl;
+    } finally {
+      db.close();
+    }
+  }
+
+  async function getPageSrc(page) {
+    if (!page) return "";
+    if (page.src) return page.src;
+    if (page.assetId) return (await getImageAsset(page.assetId)) || "";
+    return "";
   }
 
   // ---- Storage helpers for marks
@@ -180,7 +241,7 @@
     }
   }
 
-  function renderImageAndMarks(options = {}) {
+  async function renderImageAndMarks(options = {}) {
     const { preserveView = false } = options;
     const pages = getPages();
     if (!pages.length) {
@@ -193,10 +254,18 @@
 
     if (currentPageIdx > pages.length - 1) currentPageIdx = pages.length - 1;
     const page = pages[currentPageIdx];
+    const pageSrc = await getPageSrc(page);
+    if (!pageSrc) {
+      planImg.removeAttribute("src");
+      marksLayer.innerHTML = "";
+      pageIndicator.textContent = "0/0";
+      return;
+    }
+
     const currentSrc = planImg.getAttribute("src") || "";
-    if (currentSrc !== page.src) {
+    if (currentSrc !== pageSrc) {
       sampleSrc = "";
-      planImg.src = page.src;
+      planImg.src = pageSrc;
       planImg.onload = () => {
         refreshSampleCanvas();
       };
@@ -386,10 +455,12 @@
     if (!pages.length) return;
 
     const page = pages[currentPageIdx];
+    const pageSrc = await getPageSrc(page);
+    if (!pageSrc) return;
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = page.src;
+    img.src = pageSrc;
 
     await new Promise((res, rej) => {
       img.onload = () => res();
@@ -488,9 +559,12 @@
   }
 
   async function renderPageToPNGBlob(page) {
+    const pageSrc = await getPageSrc(page);
+    if (!pageSrc) return null;
+
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = page.src;
+    img.src = pageSrc;
 
     await new Promise((res, rej) => {
       img.onload = () => res();
@@ -671,8 +745,14 @@
       return;
     }
 
+    const assetId = await putImageAsset(dataUrl).catch(() => null);
+    if (!assetId) {
+      alert("Bild konnte nicht gespeichert werden (IndexedDB). Bitte Browser-Speicher prüfen.");
+      return;
+    }
+
     const pages = STATIONS[currentStation].levels[currentLevel] || (STATIONS[currentStation].levels[currentLevel] = []);
-    pages.push({ src: dataUrl, marks: [] });
+    pages.push({ assetId, marks: [] });
     if (!saveStations()) {
       pages.pop();
       return;
