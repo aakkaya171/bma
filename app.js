@@ -208,8 +208,8 @@
   function makeCheckSVGDataURL() {
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-        <path d="M18 49 L38 66 L72 26" fill="none" stroke="black" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
-        <path d="M18 49 L38 66 L72 26" fill="none" stroke="white" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="45" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="black" opacity="0.9">✔</text>
+        <text x="45" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="white">✔</text>
       </svg>
     `.trim();
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
