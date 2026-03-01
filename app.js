@@ -1,6 +1,7 @@
 // app.js
 (() => {
   const STATIONS_STORAGE_KEY = "bma_stations_v3";
+  const STATIONS_STORAGE_BACKUP_KEY = "bma_stations_v3_backup";
 
   const stationSelect = document.getElementById("stationSelect");
   const levelSelect = document.getElementById("levelSelect");
@@ -13,6 +14,7 @@
   const maintBtn = document.getElementById("maintBtn");
 
   const planWrap = document.getElementById("planWrap");
+  const planViewport = document.getElementById("planViewport");
   const planImg = document.getElementById("planImg");
   const marksLayer = document.getElementById("marksLayer");
 
@@ -40,31 +42,61 @@
   let currentPageIdx = 0;
   let ignoreNextClick = false;
 
+  let zoomScale = 1;
+  let panX = 0;
+  let panY = 0;
+  let touchStartTime = 0;
+  let touchStartPoint = null;
+  let movedTouch = false;
+  let pinchStartDist = 0;
+  let pinchStartScale = 1;
+  let isPinching = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panOriginX = 0;
+  let panOriginY = 0;
+
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
   }
 
   function loadStations() {
+    const parseStations = raw => {
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    };
+
     try {
-      const raw = localStorage.getItem(STATIONS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") return parsed;
+      const primary = parseStations(localStorage.getItem(STATIONS_STORAGE_KEY));
+      if (primary) return primary;
+    } catch {}
+
+    try {
+      const backup = parseStations(localStorage.getItem(STATIONS_STORAGE_BACKUP_KEY));
+      if (backup) {
+        localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(backup));
+        return backup;
       }
     } catch {}
 
     const fallback = (window.STATIONS && typeof window.STATIONS === "object") ? clone(window.STATIONS) : {};
     try {
       localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(fallback));
+      localStorage.setItem(STATIONS_STORAGE_BACKUP_KEY, JSON.stringify(fallback));
     } catch {}
     return fallback;
   }
 
   function saveStations() {
     try {
-      localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(STATIONS));
+      const payload = JSON.stringify(STATIONS);
+      localStorage.setItem(STATIONS_STORAGE_KEY, payload);
+      localStorage.setItem(STATIONS_STORAGE_BACKUP_KEY, payload);
+      return true;
     } catch {
-      alert("Speichern fehlgeschlagen. Eventuell ist der Speicher voll.");
+      alert("Speichern fehlgeschlagen. Bild ist evtl. zu groß oder Speicher voll.");
+      return false;
     }
   }
 
@@ -83,7 +115,6 @@
   const saveMarks = pages => {
     try {
       localStorage.setItem(storageKey(), JSON.stringify(pages));
-      saveStations();
     } catch {}
   };
 
@@ -145,12 +176,14 @@
       planImg.removeAttribute("src");
       marksLayer.innerHTML = "";
       pageIndicator.textContent = "0/0";
+      resetZoom();
       return;
     }
 
     if (currentPageIdx > pages.length - 1) currentPageIdx = pages.length - 1;
     const page = pages[currentPageIdx];
     planImg.src = page.src;
+    resetZoom();
 
     marksLayer.innerHTML = "";
     for (const m of page.marks || []) {
@@ -175,6 +208,34 @@
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
+
+  function clampPan() {
+    const baseW = planImg.clientWidth || planWrap.clientWidth || 1;
+    const baseH = planImg.clientHeight || planWrap.clientHeight || 1;
+    const maxPanX = Math.max(0, baseW * (zoomScale - 1));
+    const maxPanY = Math.max(0, baseH * (zoomScale - 1));
+    panX = Math.min(0, Math.max(-maxPanX, panX));
+    panY = Math.min(0, Math.max(-maxPanY, panY));
+  }
+
+  function applyPlanTransform() {
+    clampPan();
+    planViewport.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+  }
+
+  function resetZoom() {
+    zoomScale = 1;
+    panX = 0;
+    panY = 0;
+    applyPlanTransform();
+  }
+
+  function touchDistance(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.hypot(dx, dy);
+  }
+
   function getRelativePointerPos(evt) {
     const rect = planImg.getBoundingClientRect();
     const point = (evt.changedTouches && evt.changedTouches[0]) || (evt.touches && evt.touches[0]) || evt;
@@ -195,7 +256,7 @@
     const page = pages[currentPageIdx];
     if (!Array.isArray(page.marks)) page.marks = [];
 
-    const hitRadius = 0.045;
+    const hitRadius = 0.03;
     const idx = page.marks.findIndex(m => {
       const dx = m.x - x;
       const dy = m.y - y;
@@ -239,7 +300,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(60, Math.round(canvas.width * 0.05));
+      const size = Math.max(42, Math.round(canvas.width * 0.038));
       ctx.save();
       ctx.translate(px, py);
       ctx.lineCap = "round";
@@ -334,7 +395,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(60, Math.round(canvas.width * 0.05));
+      const size = Math.max(42, Math.round(canvas.width * 0.038));
 
       ctx.save();
       ctx.translate(px, py);
@@ -387,17 +448,37 @@
       }
     }
 
-    saveStations();
+    if (!saveStations()) return;
     renderImageAndMarks();
   }
 
   async function fileToDataURL(file) {
-    return await new Promise((resolve, reject) => {
+    const rawDataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden."));
       reader.readAsDataURL(file);
     });
+
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Bild konnte nicht gelesen werden."));
+      image.src = rawDataUrl;
+    });
+
+    const maxDim = 2000;
+    const ratio = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const targetW = Math.max(1, Math.round(img.naturalWidth * ratio));
+    const targetH = Math.max(1, Math.round(img.naturalHeight * ratio));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    return canvas.toDataURL("image/jpeg", 0.82);
   }
 
   function addStation() {
@@ -410,7 +491,10 @@
     }
 
     STATIONS[name] = { levels: { N0: [] } };
-    saveStations();
+    if (!saveStations()) {
+      delete STATIONS[name];
+      return;
+    }
 
     populateStations();
     currentStation = name;
@@ -431,7 +515,10 @@
 
     const levels = STATIONS[currentStation].levels || (STATIONS[currentStation].levels = {});
     if (!levels[lvl]) levels[lvl] = [];
-    saveStations();
+    if (!saveStations()) {
+      delete levels[lvl];
+      return;
+    }
 
     populateLevels(currentStation);
     currentLevel = lvl;
@@ -463,7 +550,10 @@
 
     const pages = STATIONS[currentStation].levels[currentLevel] || (STATIONS[currentStation].levels[currentLevel] = []);
     pages.push({ src: dataUrl, marks: [] });
-    saveStations();
+    if (!saveStations()) {
+      pages.pop();
+      return;
+    }
 
     currentPageIdx = pages.length - 1;
     renderImageAndMarks();
@@ -480,7 +570,7 @@
 
     pages.splice(currentPageIdx, 1);
     if (currentPageIdx >= pages.length) currentPageIdx = Math.max(0, pages.length - 1);
-    saveStations();
+    if (!saveStations()) return;
     saveMarks(pages);
     renderImageAndMarks();
   }
@@ -498,7 +588,7 @@
     const remainingLevels = Object.keys(STATIONS[currentStation].levels || {});
     if (!remainingLevels.length) STATIONS[currentStation].levels = { N0: [] };
 
-    saveStations();
+    if (!saveStations()) return;
     populateLevels(currentStation);
     currentLevel = levelSelect.value;
     currentPageIdx = 0;
@@ -520,7 +610,7 @@
     }
     toDelete.forEach(k => localStorage.removeItem(k));
 
-    saveStations();
+    if (!saveStations()) return;
     populateStations();
 
     const firstStation = Object.keys(STATIONS)[0] || null;
@@ -603,8 +693,77 @@
     }
   });
 
+  planWrap.addEventListener("wheel", evt => {
+    evt.preventDefault();
+    const delta = evt.deltaY < 0 ? 0.12 : -0.12;
+    zoomScale = Math.min(3, Math.max(1, zoomScale + delta));
+    if (zoomScale === 1) {
+      panX = 0;
+      panY = 0;
+    }
+    applyPlanTransform();
+  }, { passive: false });
+
+  planWrap.addEventListener("touchstart", evt => {
+    if (!evt.touches?.length) return;
+
+    touchStartTime = Date.now();
+    movedTouch = false;
+
+    if (evt.touches.length === 2) {
+      isPinching = true;
+      pinchStartDist = touchDistance(evt.touches[0], evt.touches[1]);
+      pinchStartScale = zoomScale;
+      return;
+    }
+
+    isPinching = false;
+    const t = evt.touches[0];
+    touchStartPoint = { x: t.clientX, y: t.clientY };
+
+    if (zoomScale > 1) {
+      panStartX = t.clientX;
+      panStartY = t.clientY;
+      panOriginX = panX;
+      panOriginY = panY;
+    }
+  }, { passive: true });
+
+  planWrap.addEventListener("touchmove", evt => {
+    if (!evt.touches?.length) return;
+
+    if (evt.touches.length === 2) {
+      evt.preventDefault();
+      isPinching = true;
+      const dist = touchDistance(evt.touches[0], evt.touches[1]);
+      if (!pinchStartDist) return;
+      zoomScale = Math.min(3, Math.max(1, pinchStartScale * (dist / pinchStartDist)));
+      if (zoomScale === 1) {
+        panX = 0;
+        panY = 0;
+      }
+      applyPlanTransform();
+      movedTouch = true;
+      return;
+    }
+
+    const t = evt.touches[0];
+    if (touchStartPoint) {
+      const dx = t.clientX - touchStartPoint.x;
+      const dy = t.clientY - touchStartPoint.y;
+      if (Math.hypot(dx, dy) > 8) movedTouch = true;
+    }
+
+    if (zoomScale > 1) {
+      evt.preventDefault();
+      panX = panOriginX + (t.clientX - panStartX);
+      panY = panOriginY + (t.clientY - panStartY);
+      applyPlanTransform();
+    }
+  }, { passive: false });
+
   planWrap.addEventListener("click", evt => {
-    if (!maintenanceEnabled) return;
+    if (!maintenanceEnabled || zoomScale !== 1) return;
     if (ignoreNextClick) {
       ignoreNextClick = false;
       return;
@@ -618,7 +777,14 @@
   planWrap.addEventListener(
     "touchend",
     evt => {
-      if (!maintenanceEnabled) return;
+      if (!maintenanceEnabled || zoomScale !== 1) return;
+      if (isPinching) {
+        isPinching = false;
+        return;
+      }
+
+      const pressMs = Date.now() - touchStartTime;
+      if (movedTouch || pressMs < 220) return;
 
       const pos = getRelativePointerPos(evt);
       if (!pos) return;

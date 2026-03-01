@@ -175,6 +175,16 @@
       min-height: clamp(420px, 56vh, 620px);
     }
 
+
+    .plan-viewport{
+      position: relative;
+      width: 100%;
+      min-height: inherit;
+      transform-origin: 0 0;
+      touch-action: none;
+      will-change: transform;
+    }
+
     #planImg{
       width:100%;
       height:auto;
@@ -192,8 +202,8 @@
 
     .mark{
       position:absolute;
-      width:54px;
-      height:54px;
+      width:44px;
+      height:44px;
       transform: translate(-50%, -60%);
       pointer-events:none;
       filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
@@ -215,7 +225,7 @@
       backdrop-filter: blur(3px);
       -webkit-backdrop-filter: blur(3px);
     }
-    .nav.left{ right:106px; }
+    .nav.left{ left:26px; right:auto; }
     .nav.right{ right:26px; }
     .nav.disabled{ opacity:0.25; pointer-events:none; }
 
@@ -296,8 +306,10 @@
       <div class="viewer-title">Plan</div>
 
       <div id="planWrap" class="plan-wrap">
-        <img id="planImg" alt="Plan" />
-        <div id="marksLayer"></div>
+        <div id="planViewport" class="plan-viewport">
+          <img id="planImg" alt="Plan" />
+          <div id="marksLayer"></div>
+        </div>
 
         <div id="prevBtn" class="nav left">
           <div class="tri left"></div>
