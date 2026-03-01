@@ -171,7 +171,8 @@
     }
   }
 
-  function renderImageAndMarks() {
+  function renderImageAndMarks(options = {}) {
+    const { preserveView = false } = options;
     const pages = getPages();
     if (!pages.length) {
       planImg.removeAttribute("src");
@@ -183,8 +184,13 @@
 
     if (currentPageIdx > pages.length - 1) currentPageIdx = pages.length - 1;
     const page = pages[currentPageIdx];
-    planImg.src = page.src;
-    resetZoom();
+    const currentSrc = planImg.getAttribute("src") || "";
+    if (currentSrc !== page.src) {
+      planImg.src = page.src;
+    }
+
+    if (preserveView) applyPlanTransform();
+    else resetZoom();
 
     marksLayer.innerHTML = "";
     for (const m of page.marks || []) {
@@ -278,7 +284,7 @@
     else page.marks.push({ x, y });
 
     saveMarks(getPages());
-    renderImageAndMarks();
+    renderImageAndMarks({ preserveView: true });
   }
 
   async function exportPNGCurrent() {
@@ -775,7 +781,7 @@
     if (touchStartPoint) {
       const dx = t.clientX - touchStartPoint.x;
       const dy = t.clientY - touchStartPoint.y;
-      if (Math.hypot(dx, dy) > 8) {
+      if (Math.hypot(dx, dy) > 5) {
         movedTouch = true;
         clearLongPressTimer();
       }
