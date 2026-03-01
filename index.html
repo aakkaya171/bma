@@ -89,14 +89,13 @@
     }
     .page-pill::before{ content: "Seite: "; }
 
-    .row2,
     .row3{
       margin-top: 12px;
       display:grid;
       gap:12px;
+      grid-template-columns: 1fr;
+      max-width: 72%;
     }
-    .row2{ grid-template-columns: 1fr 1fr; }
-    .row3{ grid-template-columns: 1fr; max-width: 72%; }
 
     .btn{
       width:100%;
@@ -256,12 +255,8 @@
         <div id="pageIndicator" class="page-pill">1/1</div>
       </div>
 
-      <div class="row2">
-        <button id="adminBtn" class="btn">Admin: AUS</button>
-        <button id="clearAllBtn" class="btn">ALLES löschen</button>
-      </div>
-
       <div class="row3">
+        <button id="adminBtn" class="btn">Admin: AUS</button>
         <button id="maintBtn" class="btn">Wartung: AUS</button>
         <button id="zipBtn" class="btn">ZIP Export (ganze Station)</button>
         <button id="pngBtn" class="btn hidden">PNG Export (dieses Bild)</button>
@@ -292,6 +287,8 @@
           <button id="deleteStationBtn" class="btn-small" style="width:100%;">Station löschen</button>
           <span></span>
         </div>
+
+        <button id="clearAllBtn" class="btn-small" style="width:100%; margin-top: 4px;">ALLES löschen</button>
       </div>
     </div>
 
