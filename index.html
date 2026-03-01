@@ -161,8 +161,9 @@
 
     .viewer{
       margin-top: 8px;
-      padding: 14px 0 0;
+      padding: 14px 0 calc(env(safe-area-inset-bottom) + 96px);
       border-top: 1px solid rgba(255,255,255,0.25);
+      min-height: calc(100vh - 320px);
     }
     .viewer-title{ display:none; }
 
@@ -172,7 +173,7 @@
       border: 1px solid rgba(255,255,255,0.35);
       background: rgba(0,0,0,0.14);
       overflow:hidden;
-      min-height: 360px;
+      min-height: clamp(420px, 56vh, 620px);
     }
 
     #planImg{
@@ -201,7 +202,7 @@
 
     .nav{
       position:absolute;
-      bottom:12px;
+      bottom: calc(env(safe-area-inset-bottom) + 28px);
       width:62px;
       height:62px;
       border-radius: 18px;
@@ -215,8 +216,8 @@
       backdrop-filter: blur(3px);
       -webkit-backdrop-filter: blur(3px);
     }
-    .nav.left{ right:84px; }
-    .nav.right{ right:12px; }
+    .nav.left{ right:106px; }
+    .nav.right{ right:26px; }
     .nav.disabled{ opacity:0.25; pointer-events:none; }
 
     .tri{ width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent; }
