@@ -56,6 +56,9 @@
   let panOriginY = 0;
   let longPressTimer = null;
   let longPressTriggered = false;
+  let sampleCanvas = null;
+  let sampleCtx = null;
+  let sampleSrc = "";
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -186,7 +189,13 @@
     const page = pages[currentPageIdx];
     const currentSrc = planImg.getAttribute("src") || "";
     if (currentSrc !== page.src) {
+      sampleSrc = "";
       planImg.src = page.src;
+      planImg.onload = () => {
+        refreshSampleCanvas();
+      };
+    } else {
+      refreshSampleCanvas();
     }
 
     if (preserveView) applyPlanTransform();
@@ -215,6 +224,85 @@
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
+
+
+  function refreshSampleCanvas() {
+    const src = planImg.currentSrc || planImg.src || "";
+    if (!src || !planImg.naturalWidth || !planImg.naturalHeight) return false;
+    if (sampleCanvas && sampleSrc === src) return true;
+
+    sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = planImg.naturalWidth;
+    sampleCanvas.height = planImg.naturalHeight;
+    sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    sampleCtx.drawImage(planImg, 0, 0);
+    sampleSrc = src;
+    return true;
+  }
+
+  function getMagnetSnappedPos(pos) {
+    if (!pos || !refreshSampleCanvas() || !sampleCtx) return pos;
+
+    const w = sampleCanvas.width;
+    const h = sampleCanvas.height;
+    const px = pos.x * w;
+    const py = pos.y * h;
+    const radius = Math.max(16, Math.min(44, Math.round(Math.min(w, h) * 0.02)));
+
+    const left = Math.max(0, Math.floor(px - radius));
+    const top = Math.max(0, Math.floor(py - radius));
+    const right = Math.min(w, Math.ceil(px + radius));
+    const bottom = Math.min(h, Math.ceil(py + radius));
+    const sw = right - left;
+    const sh = bottom - top;
+    if (sw < 6 || sh < 6) return pos;
+
+    const data = sampleCtx.getImageData(left, top, sw, sh).data;
+    let count = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let minX = sw;
+    let minY = sh;
+    let maxX = 0;
+    let maxY = 0;
+
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const i = (y * sw + x) * 4;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (a > 40 && lum < 96) {
+          count++;
+          sumX += x;
+          sumY += y;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (count < 24) return pos;
+
+    const boxW = Math.max(1, maxX - minX + 1);
+    const boxH = Math.max(1, maxY - minY + 1);
+    const ratio = boxW / boxH;
+    if (ratio < 0.6 || ratio > 1.7) return pos;
+
+    const density = count / (boxW * boxH);
+    if (density < 0.07 || density > 0.7) return pos;
+
+    const cx = left + sumX / count;
+    const cy = top + sumY / count;
+    const dist = Math.hypot(cx - px, cy - py);
+    if (dist > radius * 0.9) return pos;
+
+    return { x: cx / w, y: cy / h };
+  }
 
   function clampPan() {
     const baseW = planImg.clientWidth || planWrap.clientWidth || 1;
@@ -745,8 +833,9 @@
         if (movedTouch || isPinching) return;
         const pos = getRelativePointerFromPoint(point);
         if (!pos) return;
+        const snapped = getMagnetSnappedPos(pos);
         longPressTriggered = true;
-        toggleMarkAt(pos.x, pos.y);
+        toggleMarkAt(snapped.x, snapped.y);
       }, 2000);
     }
 
@@ -804,7 +893,8 @@
 
     const pos = getRelativePointerPos(evt);
     if (!pos) return;
-    toggleMarkAt(pos.x, pos.y);
+    const snapped = getMagnetSnappedPos(pos);
+    toggleMarkAt(snapped.x, snapped.y);
   });
 
   planWrap.addEventListener(
