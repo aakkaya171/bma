@@ -17,6 +17,7 @@
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.70);
       --shadow: 0 8px 20px rgba(0,0,0,0.22);
+      --btn-h: 44px;
     }
 
     * { box-sizing: border-box; }
@@ -112,7 +113,7 @@
 
     .btn{
       width:100%;
-      min-height: 44px;
+      min-height: var(--btn-h);
       border:1px solid var(--stroke);
       border-radius: 28px;
       background: var(--pill);
@@ -160,8 +161,10 @@
       border-radius: 20px;
       background: var(--pill);
       color: var(--text);
-      padding: 10px 12px;
+      min-height: var(--btn-h);
+      padding: 9px 12px;
       font-size: 14px;
+      line-height: 1;
       cursor:pointer;
       white-space: nowrap;
     }
