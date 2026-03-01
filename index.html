@@ -7,13 +7,13 @@
 
   <style>
     :root{
-      --brand:#0F2438;
-      --bg-top:#0F2438;
-      --bg-mid:#0F2438;
-      --bg-bottom:#0F2438;
-      --pill:#0F2438;
-      --pill-2:#0F2438;
-      --stroke: rgba(255,255,255,0.18);
+      --brand:#0B1220;
+      --bg-top:#0B1220;
+      --bg-mid:#0B1220;
+      --bg-bottom:#0B1220;
+      --pill:#111827;
+      --pill-2:#111827;
+      --stroke: #313F53;
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.70);
       --shadow: 0 8px 20px rgba(0,0,0,0.22);
@@ -53,7 +53,7 @@
     .select{
       width:100%;
       appearance:none;
-      border:0;
+      border:1px solid var(--stroke);
       border-radius: 22px;
       background: var(--pill);
       color: var(--text);
@@ -99,9 +99,9 @@
 
     .btn{
       width:100%;
-      border:0;
+      border:1px solid var(--stroke);
       border-radius: 32px;
-      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      background: var(--pill);
       color: var(--text);
       padding: 12px 14px;
       font-size: 16px;
@@ -141,9 +141,9 @@
     }
     .input::placeholder{ color: rgba(255,255,255,0.55); }
     .btn-small{
-      border:0;
+      border:1px solid var(--stroke);
       border-radius: 20px;
-      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      background: var(--pill);
       color: var(--text);
       padding: 10px 12px;
       font-size: 14px;
