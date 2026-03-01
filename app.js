@@ -171,6 +171,49 @@
     return "";
   }
 
+
+  async function deleteImageAsset(assetId) {
+    if (!assetId) return;
+    assetSrcCache.delete(assetId);
+    const db = await openAssetsDb().catch(() => null);
+    if (!db) return;
+    try {
+      await new Promise(resolve => {
+        const tx = db.transaction(ASSETS_STORE, "readwrite");
+        tx.objectStore(ASSETS_STORE).delete(assetId);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async function migrateInlineSourcesToAssets() {
+    let changed = false;
+
+    for (const stationName of Object.keys(STATIONS)) {
+      const station = STATIONS[stationName];
+      for (const levelName of Object.keys(station.levels || {})) {
+        const pages = station.levels[levelName] || [];
+        for (const page of pages) {
+          if (!page || typeof page !== "object") continue;
+          if (!page.src || typeof page.src !== "string") continue;
+          if (!page.src.startsWith("data:image/")) continue;
+
+          const assetId = await putImageAsset(page.src).catch(() => null);
+          if (!assetId) continue;
+
+          page.assetId = assetId;
+          delete page.src;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) saveStations();
+  }
+
   // ---- Storage helpers for marks
   const storageKey = () => `bma_marks_v2_${currentStation}__${currentLevel}`;
   const loadSavedMarks = () => {
@@ -678,8 +721,9 @@
     return best;
   }
 
-  function addStation() {
+  async function addStation() {
     if (!adminEnabled) return;
+    await migrateInlineSourcesToAssets();
     const name = newStationInput.value.trim();
     if (!name) return;
     if (STATIONS[name]) {
@@ -704,8 +748,9 @@
     newStationInput.value = "";
   }
 
-  function addLevel() {
+  async function addLevel() {
     if (!adminEnabled) return;
+    await migrateInlineSourcesToAssets();
     if (!currentStation) return;
     const lvl = newLevelInput.value.trim();
     if (!lvl) return;
@@ -728,6 +773,7 @@
 
   async function addImageToCurrentLevel() {
     if (!adminEnabled) return;
+    await migrateInlineSourcesToAssets();
     if (!currentStation || !currentLevel) {
       alert("Bitte zuerst Station und Level wählen.");
       return;
@@ -765,24 +811,32 @@
 
 
 
-  function deleteCurrentPage() {
+  async function deleteCurrentPage() {
     if (!adminEnabled || !currentStation || !currentLevel) return;
     const pages = getPages();
     if (!pages.length) return;
     if (!confirm("Aktuelle Seite wirklich löschen?")) return;
 
+    const removed = pages[currentPageIdx];
     pages.splice(currentPageIdx, 1);
+    if (removed?.assetId) {
+      deleteImageAsset(removed.assetId);
+    }
     if (currentPageIdx >= pages.length) currentPageIdx = Math.max(0, pages.length - 1);
     if (!saveStations()) return;
     saveMarks(pages);
     renderImageAndMarks();
   }
 
-  function deleteCurrentLevel() {
+  async function deleteCurrentLevel() {
     if (!adminEnabled || !currentStation || !currentLevel) return;
     if (!confirm(`Level ${currentLevel} wirklich löschen?`)) return;
 
     const levelToDelete = currentLevel;
+    const removedPages = STATIONS[currentStation].levels[levelToDelete] || [];
+    for (const p of removedPages) {
+      if (p?.assetId) deleteImageAsset(p.assetId);
+    }
     delete STATIONS[currentStation].levels[levelToDelete];
 
     const prefix = `bma_marks_v2_${currentStation}__${levelToDelete}`;
@@ -799,11 +853,17 @@
     renderImageAndMarks();
   }
 
-  function deleteCurrentStation() {
+  async function deleteCurrentStation() {
     if (!adminEnabled || !currentStation) return;
     if (!confirm(`Station ${currentStation} wirklich löschen?`)) return;
 
     const stationToDelete = currentStation;
+    const stationData = STATIONS[stationToDelete];
+    for (const lvl of Object.keys(stationData?.levels || {})) {
+      for (const p of stationData.levels[lvl] || []) {
+        if (p?.assetId) deleteImageAsset(p.assetId);
+      }
+    }
     delete STATIONS[stationToDelete];
 
     const toDelete = [];
@@ -1048,7 +1108,7 @@
     maintenanceEnabled = false;
     setModeUI();
 
-    renderImageAndMarks();
+    migrateInlineSourcesToAssets().then(() => renderImageAndMarks());
   }
 
   init();
