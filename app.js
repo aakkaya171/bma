@@ -208,8 +208,8 @@
   function makeCheckSVGDataURL() {
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-        <text x="45" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="black" opacity="0.9">✔</text>
-        <text x="45" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="white">✔</text>
+        <text x="45" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#2C2550" opacity="0.55">✔</text>
+        <text x="45" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="60" font-weight="700" fill="#7865BE">✔</text>
       </svg>
     `.trim();
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
@@ -317,7 +317,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(42, Math.round(canvas.width * 0.038));
+      const size = Math.max(34, Math.round(canvas.width * 0.032));
       ctx.save();
       ctx.translate(px, py);
       ctx.lineCap = "round";
@@ -327,7 +327,7 @@
       ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
-      ctx.strokeStyle = "rgba(0,0,0,0.95)";
+      ctx.strokeStyle = "rgba(44,37,80,0.88)";
       ctx.lineWidth = 0.16 * size;
       ctx.stroke();
 
@@ -335,7 +335,7 @@
       ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "#7865BE";
       ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
@@ -412,7 +412,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(42, Math.round(canvas.width * 0.038));
+      const size = Math.max(34, Math.round(canvas.width * 0.032));
 
       ctx.save();
       ctx.translate(px, py);
@@ -423,7 +423,7 @@
       ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
-      ctx.strokeStyle = "rgba(0,0,0,0.95)";
+      ctx.strokeStyle = "rgba(44,37,80,0.88)";
       ctx.lineWidth = 0.16 * size;
       ctx.stroke();
 
@@ -431,7 +431,7 @@
       ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "#7865BE";
       ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
