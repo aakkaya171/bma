@@ -10,6 +10,7 @@
   const clearAllBtn = document.getElementById("clearAllBtn");
   const pngBtn = document.getElementById("pngBtn");
   const zipBtn = document.getElementById("zipBtn");
+  const maintBtn = document.getElementById("maintBtn");
 
   const planWrap = document.getElementById("planWrap");
   const planImg = document.getElementById("planImg");
@@ -25,11 +26,15 @@
   const addLevelBtn = document.getElementById("addLevelBtn");
   const uploadImageInput = document.getElementById("uploadImageInput");
   const addImageBtn = document.getElementById("addImageBtn");
+  const deleteImageBtn = document.getElementById("deleteImageBtn");
+  const deleteLevelBtn = document.getElementById("deleteLevelBtn");
+  const deleteStationBtn = document.getElementById("deleteStationBtn");
 
   let STATIONS = loadStations();
 
   // ---- State
   let adminEnabled = false;
+  let maintenanceEnabled = false;
   let currentStation = null;
   let currentLevel = null;
   let currentPageIdx = 0;
@@ -83,8 +88,9 @@
   };
 
   // ---- UI helpers
-  function setAdminUI() {
+  function setModeUI() {
     adminBtn.textContent = adminEnabled ? "Admin: EIN" : "Admin: AUS";
+    maintBtn.textContent = maintenanceEnabled ? "Wartung: EIN" : "Wartung: AUS";
     settingsPanel.classList.toggle("show", adminEnabled);
   }
 
@@ -358,6 +364,10 @@
   }
 
   function clearAllWithPassword() {
+    if (!adminEnabled) {
+      alert("Admin-Modus erforderlich.");
+      return;
+    }
     const pw = prompt("Passwort für ALLES löschen:");
     if (pw !== "1705") {
       alert("Falsches Passwort.");
@@ -391,6 +401,7 @@
   }
 
   function addStation() {
+    if (!adminEnabled) return;
     const name = newStationInput.value.trim();
     if (!name) return;
     if (STATIONS[name]) {
@@ -413,6 +424,7 @@
   }
 
   function addLevel() {
+    if (!adminEnabled) return;
     if (!currentStation) return;
     const lvl = newLevelInput.value.trim();
     if (!lvl) return;
@@ -431,6 +443,7 @@
   }
 
   async function addImageToCurrentLevel() {
+    if (!adminEnabled) return;
     if (!currentStation || !currentLevel) {
       alert("Bitte zuerst Station und Level wählen.");
       return;
@@ -457,6 +470,79 @@
     uploadImageInput.value = "";
   }
 
+
+
+  function deleteCurrentPage() {
+    if (!adminEnabled || !currentStation || !currentLevel) return;
+    const pages = getPages();
+    if (!pages.length) return;
+    if (!confirm("Aktuelle Seite wirklich löschen?")) return;
+
+    pages.splice(currentPageIdx, 1);
+    if (currentPageIdx >= pages.length) currentPageIdx = Math.max(0, pages.length - 1);
+    saveStations();
+    saveMarks(pages);
+    renderImageAndMarks();
+  }
+
+  function deleteCurrentLevel() {
+    if (!adminEnabled || !currentStation || !currentLevel) return;
+    if (!confirm(`Level ${currentLevel} wirklich löschen?`)) return;
+
+    const levelToDelete = currentLevel;
+    delete STATIONS[currentStation].levels[levelToDelete];
+
+    const prefix = `bma_marks_v2_${currentStation}__${levelToDelete}`;
+    localStorage.removeItem(prefix);
+
+    const remainingLevels = Object.keys(STATIONS[currentStation].levels || {});
+    if (!remainingLevels.length) STATIONS[currentStation].levels = { N0: [] };
+
+    saveStations();
+    populateLevels(currentStation);
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    hydrateFromStorageIntoData();
+    renderImageAndMarks();
+  }
+
+  function deleteCurrentStation() {
+    if (!adminEnabled || !currentStation) return;
+    if (!confirm(`Station ${currentStation} wirklich löschen?`)) return;
+
+    const stationToDelete = currentStation;
+    delete STATIONS[stationToDelete];
+
+    const toDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(`bma_marks_v2_${stationToDelete}__`)) toDelete.push(k);
+    }
+    toDelete.forEach(k => localStorage.removeItem(k));
+
+    saveStations();
+    populateStations();
+
+    const firstStation = Object.keys(STATIONS)[0] || null;
+    if (!firstStation) {
+      stationSelect.innerHTML = `<option value="">Keine Stationen</option>`;
+      levelSelect.innerHTML = `<option value="">Keine Level</option>`;
+      currentStation = null;
+      currentLevel = null;
+      currentPageIdx = 0;
+      renderImageAndMarks();
+      return;
+    }
+
+    currentStation = firstStation;
+    stationSelect.value = firstStation;
+    populateLevels(firstStation);
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    hydrateFromStorageIntoData();
+    renderImageAndMarks();
+  }
+
   stationSelect.addEventListener("change", () => {
     currentStation = stationSelect.value;
     populateLevels(currentStation);
@@ -474,13 +560,30 @@
   });
 
   adminBtn.addEventListener("click", () => {
-    adminEnabled = !adminEnabled;
-    setAdminUI();
+    if (!adminEnabled) {
+      const pw = prompt("Admin-Passwort:");
+      if (pw !== "1705") {
+        alert("Falsches Passwort.");
+        return;
+      }
+      adminEnabled = true;
+    } else {
+      adminEnabled = false;
+    }
+    setModeUI();
+  });
+
+  maintBtn.addEventListener("click", () => {
+    maintenanceEnabled = !maintenanceEnabled;
+    setModeUI();
   });
 
   addStationBtn.addEventListener("click", addStation);
   addLevelBtn.addEventListener("click", addLevel);
   addImageBtn.addEventListener("click", addImageToCurrentLevel);
+  deleteImageBtn.addEventListener("click", deleteCurrentPage);
+  deleteLevelBtn.addEventListener("click", deleteCurrentLevel);
+  deleteStationBtn.addEventListener("click", deleteCurrentStation);
 
   clearAllBtn.addEventListener("click", clearAllWithPassword);
   pngBtn.addEventListener("click", exportPNGCurrent);
@@ -501,7 +604,7 @@
   });
 
   planWrap.addEventListener("click", evt => {
-    if (!adminEnabled) return;
+    if (!maintenanceEnabled) return;
     if (ignoreNextClick) {
       ignoreNextClick = false;
       return;
@@ -515,7 +618,7 @@
   planWrap.addEventListener(
     "touchend",
     evt => {
-      if (!adminEnabled) return;
+      if (!maintenanceEnabled) return;
 
       const pos = getRelativePointerPos(evt);
       if (!pos) return;
@@ -539,7 +642,8 @@
       levelSelect.innerHTML = `<option value="">Keine Level</option>`;
       pageIndicator.textContent = "0/0";
       adminEnabled = false;
-      setAdminUI();
+      maintenanceEnabled = false;
+      setModeUI();
       return;
     }
 
@@ -556,7 +660,8 @@
     hydrateFromStorageIntoData();
 
     adminEnabled = false;
-    setAdminUI();
+    maintenanceEnabled = false;
+    setModeUI();
 
     renderImageAndMarks();
   }
