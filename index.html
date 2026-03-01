@@ -7,11 +7,12 @@
 
   <style>
     :root{
-      --bg-top:#001a34;
-      --bg-mid:#032142;
-      --bg-bottom:#093152;
-      --pill:#1f446c;
-      --pill-2:#1c3f65;
+      --brand:#0F2438;
+      --bg-top:#0F2438;
+      --bg-mid:#0F2438;
+      --bg-bottom:#0F2438;
+      --pill:#0F2438;
+      --pill-2:#0F2438;
       --stroke: rgba(255,255,255,0.18);
       --text: rgba(255,255,255,0.94);
       --muted: rgba(255,255,255,0.70);
@@ -27,24 +28,12 @@
     }
 
     body{
-      background: radial-gradient(1100px 640px at 50% 20%, #0b3156 0%, #032646 42%, #001b37 100%);
+      background: var(--brand);
       padding: env(safe-area-inset-top) 14px env(safe-area-inset-right) 14px env(safe-area-inset-bottom) 14px env(safe-area-inset-left) 14px;
     }
 
     .app{ max-width: 430px; margin: 0 auto; }
     .panel{ padding: 12px; }
-
-    .desktop-only-note{
-      display:none;
-      text-align:center;
-      background: rgba(0,0,0,0.28);
-      border: 1px solid rgba(255,255,255,0.24);
-      border-radius: 18px;
-      padding: 14px;
-      margin-bottom: 12px;
-      color: rgba(255,255,255,0.9);
-      font-size: 15px;
-    }
 
     .controls{
       display:grid;
@@ -241,7 +230,6 @@
 
     @media (min-width: 820px){
       body{ display:flex; justify-content:center; }
-      .desktop-only-note{ display:block; }
       .app{ width: 430px; max-width: 430px; }
     }
   </style>
@@ -249,10 +237,6 @@
 
 <body>
   <div class="app">
-    <div class="desktop-only-note">
-      Diese App ist für Smartphones optimiert. Bitte am Handy benutzen.
-    </div>
-
     <div class="panel">
       <div class="controls">
         <div class="field">
