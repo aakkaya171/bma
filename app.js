@@ -45,7 +45,6 @@
   let zoomScale = 1;
   let panX = 0;
   let panY = 0;
-  let touchStartTime = 0;
   let touchStartPoint = null;
   let movedTouch = false;
   let pinchStartDist = 0;
@@ -250,6 +249,7 @@
   }
 
   function toggleMarkAt(x, y) {
+    if (!maintenanceEnabled) return;
     const pages = getPages();
     if (!pages.length) return;
 
@@ -707,7 +707,6 @@
   planWrap.addEventListener("touchstart", evt => {
     if (!evt.touches?.length) return;
 
-    touchStartTime = Date.now();
     movedTouch = false;
 
     if (evt.touches.length === 2) {
@@ -783,8 +782,7 @@
         return;
       }
 
-      const pressMs = Date.now() - touchStartTime;
-      if (movedTouch || pressMs < 220) return;
+      if (movedTouch) return;
 
       const pos = getRelativePointerPos(evt);
       if (!pos) return;
