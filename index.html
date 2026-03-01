@@ -121,6 +121,52 @@
     }
     .btn:active{ transform: scale(0.99); }
 
+    .settings{
+      margin-top: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 10px;
+      background: rgba(0,0,0,0.22);
+      display:none;
+    }
+    .settings.show{ display:block; }
+    .settings h3{
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .settings-row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:8px;
+      margin-bottom: 8px;
+    }
+    .input,
+    .file-input{
+      width:100%;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+    .input::placeholder{ color: rgba(255,255,255,0.55); }
+    .btn-small{
+      border:0;
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--pill), var(--pill-2));
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor:pointer;
+      white-space: nowrap;
+    }
+    .hint{
+      margin: 4px 0 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
     .viewer{
       margin-top: 8px;
       padding: 14px 0 0;
@@ -192,17 +238,9 @@
     }
 
     @media (min-width: 820px){
-      body{
-        display:flex;
-        justify-content:center;
-      }
-
+      body{ display:flex; justify-content:center; }
       .desktop-only-note{ display:block; }
-
-      .app{
-        width: 430px;
-        max-width: 430px;
-      }
+      .app{ width: 430px; max-width: 430px; }
     }
   </style>
 </head>
@@ -241,6 +279,24 @@
         <button id="pngBtn" class="btn">PNG Export</button>
         <button id="zipBtn" class="btn">ZIP Export</button>
       </div>
+
+      <div id="settingsPanel" class="settings">
+        <h3>Einstellungen (Admin)</h3>
+
+        <div class="settings-row">
+          <input id="newStationInput" class="input" placeholder="Neue Station (Name)" />
+          <button id="addStationBtn" class="btn-small">Station +</button>
+        </div>
+
+        <div class="settings-row">
+          <input id="newLevelInput" class="input" placeholder="Neues Level (z. B. N-1)" />
+          <button id="addLevelBtn" class="btn-small">Level +</button>
+        </div>
+
+        <input id="uploadImageInput" class="file-input" type="file" accept="image/*" />
+        <div class="hint">Bild wird dem aktuell gewählten Level hinzugefügt.</div>
+        <button id="addImageBtn" class="btn-small">Bild hinzufügen</button>
+      </div>
     </div>
 
     <div class="panel viewer">
@@ -261,7 +317,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

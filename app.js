@@ -1,31 +1,69 @@
 // app.js
 (() => {
-  const STATIONS = window.STATIONS || {};
+  const STATIONS_STORAGE_KEY = "bma_stations_v3";
 
   const stationSelect = document.getElementById("stationSelect");
-  const levelSelect   = document.getElementById("levelSelect");
+  const levelSelect = document.getElementById("levelSelect");
   const pageIndicator = document.getElementById("pageIndicator");
 
-  const adminBtn   = document.getElementById("adminBtn");
-  const clearAllBtn= document.getElementById("clearAllBtn");
-  const pngBtn     = document.getElementById("pngBtn");
-  const zipBtn     = document.getElementById("zipBtn");
+  const adminBtn = document.getElementById("adminBtn");
+  const clearAllBtn = document.getElementById("clearAllBtn");
+  const pngBtn = document.getElementById("pngBtn");
+  const zipBtn = document.getElementById("zipBtn");
 
-  const planWrap   = document.getElementById("planWrap");
-  const planImg    = document.getElementById("planImg");
+  const planWrap = document.getElementById("planWrap");
+  const planImg = document.getElementById("planImg");
   const marksLayer = document.getElementById("marksLayer");
 
-  const prevBtn    = document.getElementById("prevBtn");
-  const nextBtn    = document.getElementById("nextBtn");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  const settingsPanel = document.getElementById("settingsPanel");
+  const newStationInput = document.getElementById("newStationInput");
+  const addStationBtn = document.getElementById("addStationBtn");
+  const newLevelInput = document.getElementById("newLevelInput");
+  const addLevelBtn = document.getElementById("addLevelBtn");
+  const uploadImageInput = document.getElementById("uploadImageInput");
+  const addImageBtn = document.getElementById("addImageBtn");
+
+  let STATIONS = loadStations();
 
   // ---- State
   let adminEnabled = false;
   let currentStation = null;
-  let currentLevel   = null;
+  let currentLevel = null;
   let currentPageIdx = 0;
   let ignoreNextClick = false;
 
-  // ---- Storage helpers
+  function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function loadStations() {
+    try {
+      const raw = localStorage.getItem(STATIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch {}
+
+    const fallback = (window.STATIONS && typeof window.STATIONS === "object") ? clone(window.STATIONS) : {};
+    try {
+      localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(fallback));
+    } catch {}
+    return fallback;
+  }
+
+  function saveStations() {
+    try {
+      localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(STATIONS));
+    } catch {
+      alert("Speichern fehlgeschlagen. Eventuell ist der Speicher voll.");
+    }
+  }
+
+  // ---- Storage helpers for marks
   const storageKey = () => `bma_marks_v2_${currentStation}__${currentLevel}`;
   const loadSavedMarks = () => {
     try {
@@ -36,15 +74,18 @@
       return null;
     }
   };
-  const saveMarks = (pages) => {
+
+  const saveMarks = pages => {
     try {
       localStorage.setItem(storageKey(), JSON.stringify(pages));
+      saveStations();
     } catch {}
   };
 
   // ---- UI helpers
   function setAdminUI() {
     adminBtn.textContent = adminEnabled ? "Admin: EIN" : "Admin: AUS";
+    settingsPanel.classList.toggle("show", adminEnabled);
   }
 
   function setNavDisabled() {
@@ -53,14 +94,12 @@
 
     prevBtn.classList.toggle("disabled", currentPageIdx <= 0);
     nextBtn.classList.toggle("disabled", currentPageIdx >= max);
-
-    pageIndicator.textContent = `${pages.length ? (currentPageIdx + 1) : 0}/${pages.length || 0}`;
+    pageIndicator.textContent = `${pages.length ? currentPageIdx + 1 : 0}/${pages.length || 0}`;
   }
 
   function populateStations() {
     stationSelect.innerHTML = "";
-    const names = Object.keys(STATIONS);
-    for (const name of names) {
+    for (const name of Object.keys(STATIONS)) {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
@@ -103,16 +142,17 @@
       return;
     }
 
+    if (currentPageIdx > pages.length - 1) currentPageIdx = pages.length - 1;
     const page = pages[currentPageIdx];
     planImg.src = page.src;
 
     marksLayer.innerHTML = "";
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const el = document.createElement("img");
       el.className = "mark";
       el.src = makeCheckSVGDataURL();
       el.style.left = `${m.x * 100}%`;
-      el.style.top  = `${m.y * 100}%`;
+      el.style.top = `${m.y * 100}%`;
       marksLayer.appendChild(el);
     }
 
@@ -131,9 +171,7 @@
 
   function getRelativePointerPos(evt) {
     const rect = planImg.getBoundingClientRect();
-    const point = (evt.changedTouches && evt.changedTouches[0])
-      || (evt.touches && evt.touches[0])
-      || evt;
+    const point = (evt.changedTouches && evt.changedTouches[0]) || (evt.touches && evt.touches[0]) || evt;
 
     if (!point || rect.width <= 0 || rect.height <= 0) return null;
 
@@ -141,7 +179,6 @@
     const y = (point.clientY - rect.top) / rect.height;
 
     if (x < 0 || x > 1 || y < 0 || y > 1) return null;
-
     return { x, y };
   }
 
@@ -150,6 +187,7 @@
     if (!pages.length) return;
 
     const page = pages[currentPageIdx];
+    if (!Array.isArray(page.marks)) page.marks = [];
 
     const hitRadius = 0.045;
     const idx = page.marks.findIndex(m => {
@@ -158,11 +196,8 @@
       return Math.sqrt(dx * dx + dy * dy) < hitRadius;
     });
 
-    if (idx >= 0) {
-      page.marks.splice(idx, 1);
-    } else {
-      page.marks.push({ x, y });
-    }
+    if (idx >= 0) page.marks.splice(idx, 1);
+    else page.marks.push({ x, y });
 
     saveMarks(getPages());
     renderImageAndMarks();
@@ -181,7 +216,7 @@
     await new Promise((res, rej) => {
       img.onload = () => res();
       img.onerror = () => rej(new Error("Bild konnte nicht geladen werden (CORS/Path)."));
-    }).catch((e) => {
+    }).catch(e => {
       alert(e.message);
       return null;
     });
@@ -195,7 +230,7 @@
 
     ctx.drawImage(img, 0, 0);
 
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
       const size = Math.max(60, Math.round(canvas.width * 0.05));
@@ -205,7 +240,7 @@
       ctx.lineJoin = "round";
 
       ctx.beginPath();
-      ctx.moveTo(-0.30 * size, 0.05 * size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "rgba(0,0,0,0.95)";
@@ -213,11 +248,11 @@
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(-0.30 * size, 0.05 * size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 0.10 * size;
+      ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
       ctx.restore();
@@ -290,7 +325,7 @@
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, 0, 0);
 
-    for (const m of page.marks) {
+    for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
       const size = Math.max(60, Math.round(canvas.width * 0.05));
@@ -301,7 +336,7 @@
       ctx.lineJoin = "round";
 
       ctx.beginPath();
-      ctx.moveTo(-0.30 * size, 0.05 * size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "rgba(0,0,0,0.95)";
@@ -309,11 +344,11 @@
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(-0.30 * size, 0.05 * size);
+      ctx.moveTo(-0.3 * size, 0.05 * size);
       ctx.lineTo(-0.05 * size, 0.28 * size);
       ctx.lineTo(0.38 * size, -0.25 * size);
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 0.10 * size;
+      ctx.lineWidth = 0.1 * size;
       ctx.stroke();
 
       ctx.restore();
@@ -342,7 +377,84 @@
       }
     }
 
+    saveStations();
     renderImageAndMarks();
+  }
+
+  async function fileToDataURL(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addStation() {
+    const name = newStationInput.value.trim();
+    if (!name) return;
+    if (STATIONS[name]) {
+      alert("Station existiert bereits.");
+      return;
+    }
+
+    STATIONS[name] = { levels: { N0: [] } };
+    saveStations();
+
+    populateStations();
+    currentStation = name;
+    stationSelect.value = name;
+    populateLevels(name);
+    currentLevel = levelSelect.value;
+    currentPageIdx = 0;
+    renderImageAndMarks();
+
+    newStationInput.value = "";
+  }
+
+  function addLevel() {
+    if (!currentStation) return;
+    const lvl = newLevelInput.value.trim();
+    if (!lvl) return;
+
+    const levels = STATIONS[currentStation].levels || (STATIONS[currentStation].levels = {});
+    if (!levels[lvl]) levels[lvl] = [];
+    saveStations();
+
+    populateLevels(currentStation);
+    currentLevel = lvl;
+    levelSelect.value = lvl;
+    currentPageIdx = 0;
+    renderImageAndMarks();
+
+    newLevelInput.value = "";
+  }
+
+  async function addImageToCurrentLevel() {
+    if (!currentStation || !currentLevel) {
+      alert("Bitte zuerst Station und Level wählen.");
+      return;
+    }
+
+    const file = uploadImageInput.files?.[0];
+    if (!file) {
+      alert("Bitte ein Bild auswählen.");
+      return;
+    }
+
+    const dataUrl = await fileToDataURL(file).catch(() => null);
+    if (!dataUrl) {
+      alert("Bild konnte nicht geladen werden.");
+      return;
+    }
+
+    const pages = STATIONS[currentStation].levels[currentLevel] || (STATIONS[currentStation].levels[currentLevel] = []);
+    pages.push({ src: dataUrl, marks: [] });
+    saveStations();
+
+    currentPageIdx = pages.length - 1;
+    renderImageAndMarks();
+    uploadImageInput.value = "";
   }
 
   stationSelect.addEventListener("change", () => {
@@ -366,6 +478,10 @@
     setAdminUI();
   });
 
+  addStationBtn.addEventListener("click", addStation);
+  addLevelBtn.addEventListener("click", addLevel);
+  addImageBtn.addEventListener("click", addImageToCurrentLevel);
+
   clearAllBtn.addEventListener("click", clearAllWithPassword);
   pngBtn.addEventListener("click", exportPNGCurrent);
   zipBtn.addEventListener("click", exportZIPStation);
@@ -384,7 +500,7 @@
     }
   });
 
-  planWrap.addEventListener("click", (evt) => {
+  planWrap.addEventListener("click", evt => {
     if (!adminEnabled) return;
     if (ignoreNextClick) {
       ignoreNextClick = false;
@@ -396,19 +512,23 @@
     toggleMarkAt(pos.x, pos.y);
   });
 
-  planWrap.addEventListener("touchend", (evt) => {
-    if (!adminEnabled) return;
+  planWrap.addEventListener(
+    "touchend",
+    evt => {
+      if (!adminEnabled) return;
 
-    const pos = getRelativePointerPos(evt);
-    if (!pos) return;
+      const pos = getRelativePointerPos(evt);
+      if (!pos) return;
 
-    ignoreNextClick = true;
-    setTimeout(() => {
-      ignoreNextClick = false;
-    }, 300);
+      ignoreNextClick = true;
+      setTimeout(() => {
+        ignoreNextClick = false;
+      }, 300);
 
-    toggleMarkAt(pos.x, pos.y);
-  }, { passive: true });
+      toggleMarkAt(pos.x, pos.y);
+    },
+    { passive: true }
+  );
 
   function init() {
     populateStations();
@@ -418,6 +538,8 @@
       stationSelect.innerHTML = `<option value="">Keine Stationen</option>`;
       levelSelect.innerHTML = `<option value="">Keine Level</option>`;
       pageIndicator.textContent = "0/0";
+      adminEnabled = false;
+      setAdminUI();
       return;
     }
 
