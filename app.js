@@ -54,6 +54,8 @@
   let panStartY = 0;
   let panOriginX = 0;
   let panOriginY = 0;
+  let longPressTimer = null;
+  let longPressTriggered = false;
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -211,14 +213,15 @@
   function clampPan() {
     const baseW = planImg.clientWidth || planWrap.clientWidth || 1;
     const baseH = planImg.clientHeight || planWrap.clientHeight || 1;
-    const maxPanX = Math.max(0, baseW * (zoomScale - 1));
-    const maxPanY = Math.max(0, baseH * (zoomScale - 1));
-    panX = Math.min(0, Math.max(-maxPanX, panX));
-    panY = Math.min(0, Math.max(-maxPanY, panY));
+    const maxPanX = Math.max(0, (baseW * (zoomScale - 1)) / 2);
+    const maxPanY = Math.max(0, (baseH * (zoomScale - 1)) / 2);
+    panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+    panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
   }
 
   function applyPlanTransform() {
     clampPan();
+    planViewport.style.transformOrigin = "50% 50%";
     planViewport.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
   }
 
@@ -235,17 +238,25 @@
     return Math.hypot(dx, dy);
   }
 
-  function getRelativePointerPos(evt) {
+  function getRelativePointerFromPoint(point) {
     const rect = planImg.getBoundingClientRect();
-    const point = (evt.changedTouches && evt.changedTouches[0]) || (evt.touches && evt.touches[0]) || evt;
-
     if (!point || rect.width <= 0 || rect.height <= 0) return null;
 
     const x = (point.clientX - rect.left) / rect.width;
     const y = (point.clientY - rect.top) / rect.height;
-
     if (x < 0 || x > 1 || y < 0 || y > 1) return null;
     return { x, y };
+  }
+
+  function clearLongPressTimer() {
+    if (!longPressTimer) return;
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+
+  function getRelativePointerPos(evt) {
+    const point = (evt.changedTouches && evt.changedTouches[0]) || (evt.touches && evt.touches[0]) || evt;
+    return getRelativePointerFromPoint(point);
   }
 
   function toggleMarkAt(x, y) {
@@ -708,6 +719,8 @@
     if (!evt.touches?.length) return;
 
     movedTouch = false;
+    longPressTriggered = false;
+    clearLongPressTimer();
 
     if (evt.touches.length === 2) {
       isPinching = true;
@@ -719,6 +732,17 @@
     isPinching = false;
     const t = evt.touches[0];
     touchStartPoint = { x: t.clientX, y: t.clientY };
+
+    if (maintenanceEnabled) {
+      const point = { clientX: t.clientX, clientY: t.clientY };
+      longPressTimer = setTimeout(() => {
+        if (movedTouch || isPinching) return;
+        const pos = getRelativePointerFromPoint(point);
+        if (!pos) return;
+        longPressTriggered = true;
+        toggleMarkAt(pos.x, pos.y);
+      }, 2000);
+    }
 
     if (zoomScale > 1) {
       panStartX = t.clientX;
@@ -743,6 +767,7 @@
       }
       applyPlanTransform();
       movedTouch = true;
+      clearLongPressTimer();
       return;
     }
 
@@ -750,7 +775,10 @@
     if (touchStartPoint) {
       const dx = t.clientX - touchStartPoint.x;
       const dy = t.clientY - touchStartPoint.y;
-      if (Math.hypot(dx, dy) > 8) movedTouch = true;
+      if (Math.hypot(dx, dy) > 8) {
+        movedTouch = true;
+        clearLongPressTimer();
+      }
     }
 
     if (zoomScale > 1) {
@@ -762,7 +790,7 @@
   }, { passive: false });
 
   planWrap.addEventListener("click", evt => {
-    if (!maintenanceEnabled || zoomScale !== 1) return;
+    if (!maintenanceEnabled) return;
     if (ignoreNextClick) {
       ignoreNextClick = false;
       return;
@@ -775,27 +803,26 @@
 
   planWrap.addEventListener(
     "touchend",
-    evt => {
-      if (!maintenanceEnabled || zoomScale !== 1) return;
+    () => {
+      clearLongPressTimer();
       if (isPinching) {
         isPinching = false;
-        return;
       }
 
-      if (movedTouch) return;
-
-      const pos = getRelativePointerPos(evt);
-      if (!pos) return;
-
-      ignoreNextClick = true;
-      setTimeout(() => {
-        ignoreNextClick = false;
-      }, 300);
-
-      toggleMarkAt(pos.x, pos.y);
+      if (longPressTriggered) {
+        ignoreNextClick = true;
+        setTimeout(() => {
+          ignoreNextClick = false;
+        }, 300);
+      }
     },
     { passive: true }
   );
+
+  planWrap.addEventListener("touchcancel", () => {
+    clearLongPressTimer();
+    isPinching = false;
+  }, { passive: true });
 
   function init() {
     populateStations();
