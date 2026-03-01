@@ -93,15 +93,21 @@
   }
 
   function saveStations() {
+    let payload = "";
     try {
-      const payload = JSON.stringify(STATIONS);
+      payload = JSON.stringify(STATIONS);
       localStorage.setItem(STATIONS_STORAGE_KEY, payload);
-      localStorage.setItem(STATIONS_STORAGE_BACKUP_KEY, payload);
-      return true;
     } catch {
       alert("Speichern fehlgeschlagen. Bild ist evtl. zu groß oder Speicher voll.");
       return false;
     }
+
+    try {
+      // Backup is best-effort and should not block the main save.
+      localStorage.setItem(STATIONS_STORAGE_BACKUP_KEY, payload);
+    } catch {}
+
+    return true;
   }
 
   // ---- Storage helpers for marks
@@ -572,7 +578,7 @@
       image.src = rawDataUrl;
     });
 
-    const maxDim = 2000;
+    const maxDim = 1400;
     const ratio = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
     const targetW = Math.max(1, Math.round(img.naturalWidth * ratio));
     const targetH = Math.max(1, Math.round(img.naturalHeight * ratio));
@@ -583,7 +589,19 @@
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, 0, 0, targetW, targetH);
 
-    return canvas.toDataURL("image/jpeg", 0.82);
+    const candidates = [
+      canvas.toDataURL("image/webp", 0.72),
+      canvas.toDataURL("image/jpeg", 0.72),
+      canvas.toDataURL("image/jpeg", 0.58),
+      canvas.toDataURL("image/jpeg", 0.45)
+    ];
+
+    // Prefer the smallest candidate to reduce localStorage pressure.
+    let best = candidates[0];
+    for (const c of candidates) {
+      if (c.length < best.length) best = c;
+    }
+    return best;
   }
 
   function addStation() {
@@ -649,7 +667,7 @@
 
     const dataUrl = await fileToDataURL(file).catch(() => null);
     if (!dataUrl) {
-      alert("Bild konnte nicht geladen werden.");
+      alert("Bild konnte nicht geladen/komprimiert werden.");
       return;
     }
 
