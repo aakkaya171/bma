@@ -4,6 +4,7 @@
   const STATIONS_STORAGE_BACKUP_KEY = "bma_stations_v3_backup";
   const ASSETS_DB_NAME = "bma_assets_v1";
   const ASSETS_STORE = "images";
+  const MAX_ZOOM = 6;
 
   const stationSelect = document.getElementById("stationSelect");
   const levelSelect = document.getElementById("levelSelect");
@@ -959,7 +960,7 @@
   planWrap.addEventListener("wheel", evt => {
     evt.preventDefault();
     const delta = evt.deltaY < 0 ? 0.12 : -0.12;
-    zoomScale = Math.min(3, Math.max(1, zoomScale + delta));
+    zoomScale = Math.min(MAX_ZOOM, Math.max(1, zoomScale + delta));
     if (zoomScale === 1) {
       panX = 0;
       panY = 0;
@@ -1013,7 +1014,7 @@
       isPinching = true;
       const dist = touchDistance(evt.touches[0], evt.touches[1]);
       if (!pinchStartDist) return;
-      zoomScale = Math.min(3, Math.max(1, pinchStartScale * (dist / pinchStartDist)));
+      zoomScale = Math.min(MAX_ZOOM, Math.max(1, pinchStartScale * (dist / pinchStartDist)));
       if (zoomScale === 1) {
         panX = 0;
         panY = 0;
