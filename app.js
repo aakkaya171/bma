@@ -4,7 +4,7 @@
   const STATIONS_STORAGE_BACKUP_KEY = "bma_stations_v3_backup";
   const ASSETS_DB_NAME = "bma_assets_v1";
   const ASSETS_STORE = "images";
-  const MAX_ZOOM = 6;
+  const MAX_ZOOM = 10;
 
   const stationSelect = document.getElementById("stationSelect");
   const levelSelect = document.getElementById("levelSelect");
@@ -336,8 +336,8 @@
   function makeCheckSVGDataURL() {
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-        <text x="45" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#2C2550" opacity="0.55">✔</text>
-        <text x="45" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="60" font-weight="700" fill="#7865BE">✔</text>
+        <text x="45" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#2C2550" opacity="0.55">✔</text>
+        <text x="45" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#7865BE">✔</text>
       </svg>
     `.trim();
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
@@ -526,7 +526,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(34, Math.round(canvas.width * 0.032));
+      const size = Math.max(17, Math.round(canvas.width * 0.016));
       ctx.save();
       ctx.translate(px, py);
       ctx.lineCap = "round";
@@ -624,7 +624,7 @@
     for (const m of page.marks || []) {
       const px = m.x * canvas.width;
       const py = m.y * canvas.height;
-      const size = Math.max(34, Math.round(canvas.width * 0.032));
+      const size = Math.max(17, Math.round(canvas.width * 0.016));
 
       ctx.save();
       ctx.translate(px, py);
